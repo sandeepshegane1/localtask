@@ -126,17 +126,26 @@ router.get('/provider-stats/:providerId', async (req, res) => {
   }
 });
 
-// Get all reviews created by the current user
+// Get reviews for the authenticated user
 router.get('/my-reviews', auth, async (req, res) => {
   try {
-    const reviews = await Review.find({ client: req.user._id })
+    let query;
+    if (req.user.role === 'PROVIDER') {
+      query = { provider: req.user._id };
+    } else {
+      query = { client: req.user._id };
+    }
+
+    const reviews = await Review.find(query)
       .populate('provider', 'name')
-      .populate('task', 'title description')
+      .populate('client', 'name')
+      .populate('task', 'title')
       .sort({ createdAt: -1 });
 
     res.json(reviews);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching user reviews:', error);
+    res.status(500).json({ error: 'Failed to fetch user reviews' });
   }
 });
 

@@ -7,6 +7,7 @@ import { Star, MapPin, Clock, Calendar, Edit2, X, Check, Tag, MessageSquare } fr
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/axios'
 import { ReviewForm } from '../dashboard/ReviewForm'
+import { ReviewsModal } from './ReviewsModal'
 
 interface UserData {
   _id: string
@@ -38,7 +39,18 @@ interface Task {
 
 interface Review {
   _id: string
-  task: string
+  task: {
+    _id: string
+    title: string
+  }
+  provider: {
+    _id: string
+    name: string
+  }
+  client: {
+    _id: string
+    name: string
+  }
   rating: number
   comment: string
   createdAt: string
@@ -52,6 +64,7 @@ export function UserProfile() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [submittedReviews, setSubmittedReviews] = useState<Set<string>>(new Set())
+  const [showReviewsModal, setShowReviewsModal] = useState(false)
 
   const { register, handleSubmit, reset } = useForm<UserData>({
     defaultValues: {
@@ -67,6 +80,32 @@ export function UserProfile() {
       updatedAt: user?.updatedAt || ''
     }
   })
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const promises = [api.get('/reviews/my-reviews')];
+        
+        if (user?.role === 'CLIENT') {
+          promises.push(api.get('/tasks/user-tasks'));
+        }
+        
+        const [reviewsResponse, ...otherResponses] = await Promise.all(promises);
+        
+        setReviews(reviewsResponse.data);
+        if (user?.role === 'CLIENT' && otherResponses[0]) {
+          setUserTasks(otherResponses[0].data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error)
+        toast.error('Failed to fetch user data')
+      }
+    };
+
+    if (user?._id) {
+      fetchUserData();
+    }
+  }, [user?._id, user?.role]);
 
   useEffect(() => {
     const fetchUserTasks = async () => {
@@ -85,28 +124,8 @@ export function UserProfile() {
     }
   }, [user?._id]);
 
-  useEffect(() => {
-    const fetchUserTasks = async () => {
-      if (user?.role === 'CLIENT') {
-        try {
-          const [tasksResponse, reviewsResponse] = await Promise.all([
-            api.get('/tasks/user-tasks'),
-            api.get('/reviews/my-reviews')
-          ]);
-          setUserTasks(tasksResponse.data);
-          setReviews(reviewsResponse.data);
-        } catch (error) {
-          console.error('Failed to fetch user data:', error)
-          toast.error('Failed to fetch user data')
-        }
-      }
-    }
-
-    fetchUserTasks()
-  }, [user?.role])
-
   const getReviewStatus = (task: Task) => {
-    const review = reviews.find(r => r.task === task._id);
+    const review = reviews.find(r => r.task._id === task._id);
     const isJustSubmitted = submittedReviews.has(task._id);
     
     if (task.status !== 'COMPLETED') {
@@ -193,7 +212,14 @@ export function UserProfile() {
               <h1 className="text-3xl font-bold text-gray-800">{user?.name}</h1>
               <div className="flex items-center mt-2">
                 <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                <span className="ml-1 text-gray-600">4.9 (20 reviews)</span>
+                <button 
+                  onClick={() => setShowReviewsModal(true)}
+                  className="ml-1 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  {reviews.length > 0
+                    ? `${(reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)} (${reviews.length} reviews)`
+                    : 'No reviews yet'}
+                </button>
               </div>
             </div>
             <button
@@ -358,62 +384,64 @@ export function UserProfile() {
               </div>
 
               {user?.role === 'CLIENT' && (
-                <div className="bg-gray-50 rounded-lg p-6 shadow-sm lg:col-span-3">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <Calendar className="w-5 h-5 mr-2 text-blue-500" />
-                    Booked Services
-                  </h3>
-                  {userTasks.length > 0 ? (
-                    <div className="space-y-4">
-                      {userTasks.map((task) => (
-                        <div key={task._id} className="bg-white p-4 rounded-md shadow-sm">
-                          <h4 className="font-medium text-gray-800">{task.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                          <div className="flex justify-between items-center mt-2">
-                            <div className="flex items-center space-x-4">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(task.status, task.rejectedByProvider)}`}>
-                                {task.status === 'CANCELLED' && task.rejectedByProvider ? 'Rejected' : task.status}
+                <>
+                  <div className="bg-gray-50 rounded-lg p-6 shadow-sm lg:col-span-3">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                      <Calendar className="w-5 h-5 mr-2 text-blue-500" />
+                      Booked Services
+                    </h3>
+                    {userTasks.length > 0 ? (
+                      <div className="space-y-4">
+                        {userTasks.map((task) => (
+                          <div key={task._id} className="bg-white p-4 rounded-md shadow-sm">
+                            <h4 className="font-medium text-gray-800">{task.title}</h4>
+                            <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                            <div className="flex justify-between items-center mt-2">
+                              <div className="flex items-center space-x-4">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(task.status, task.rejectedByProvider)}`}>
+                                  {task.status === 'CANCELLED' && task.rejectedByProvider ? 'Rejected' : task.status}
+                                </span>
+                                {task.provider?._id && (
+                                  <>
+                                    {(() => {
+                                      const reviewStatus = getReviewStatus(task);
+                                      return (
+                                        <div className="flex items-center">
+                                          {reviewStatus.canReview ? (
+                                            <button
+                                              onClick={() => {
+                                                setSelectedTask(task);
+                                                setShowReviewForm(true);
+                                              }}
+                                              className={`flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${reviewStatus.buttonStyle}`}
+                                            >
+                                              <Star className="w-3 h-3 mr-1" />
+                                              {reviewStatus.message}
+                                            </button>
+                                          ) : (
+                                            <span className={`flex items-center text-xs ${reviewStatus.buttonStyle}`}>
+                                              <MessageSquare className="w-3 h-3 mr-1" />
+                                              {reviewStatus.message}
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                  </>
+                                )}
+                              </div>
+                              <span className="text-sm text-gray-500">
+                                {formatDate(task.createdAt)}
                               </span>
-                              {task.provider?._id && (
-                                <>
-                                  {(() => {
-                                    const reviewStatus = getReviewStatus(task);
-                                    return (
-                                      <div className="flex items-center">
-                                        {reviewStatus.canReview ? (
-                                          <button
-                                            onClick={() => {
-                                              setSelectedTask(task);
-                                              setShowReviewForm(true);
-                                            }}
-                                            className={`flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${reviewStatus.buttonStyle}`}
-                                          >
-                                            <Star className="w-3 h-3 mr-1" />
-                                            {reviewStatus.message}
-                                          </button>
-                                        ) : (
-                                          <span className={`flex items-center text-xs ${reviewStatus.buttonStyle}`}>
-                                            <MessageSquare className="w-3 h-3 mr-1" />
-                                            {reviewStatus.message}
-                                          </span>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-                                </>
-                              )}
                             </div>
-                            <span className="text-sm text-gray-500">
-                              {formatDate(task.createdAt)}
-                            </span>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 italic">No booked services found</p>
-                  )}
-                </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic">No booked services found</p>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -433,6 +461,12 @@ export function UserProfile() {
           }}
         />
       )}
+      <ReviewsModal
+        reviews={reviews}
+        isOpen={showReviewsModal}
+        onClose={() => setShowReviewsModal(false)}
+        userRole={user?.role || 'CLIENT'}
+      />
     </div>
   )
 }
