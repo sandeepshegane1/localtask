@@ -37,7 +37,6 @@ router.patch('/profile', auth, async (req, res) => {
 // Get service providers by category
 router.get('/providers', auth, async (req, res) => {
   console.log('Request received for /providers with query:', req.query);
-
   try {
     const { category, lat, lng } = req.query;
     
@@ -48,13 +47,9 @@ router.get('/providers', auth, async (req, res) => {
 
     // Add category filter if specified
     if (category) {
-      query.$or = [
-        { skills: { $in: [category.toUpperCase()] } },
-        { category: category.toUpperCase() },
-        { category: 'SERVICE' } // Include all service providers
-      ];
+      // Only show providers who have the specific skill/category
+      query.skills = { $in: [category.toUpperCase()] };
     }
-
     // Add location filter if coordinates are provided
     if (lat && lng) {
       query.location = {

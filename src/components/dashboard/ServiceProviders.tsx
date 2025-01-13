@@ -867,15 +867,6 @@ export function ServiceProviders() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">
-          Welcome to LocalTask
-        </h1>
-        <p className="text-gray-600 mt-2">
-          Find trusted service providers in your area
-        </p>
-      </div>
-
       <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg shadow-sm p-6 mb-6">
         <div className="flex items-center justify-between">
           <div className="flex-1">
