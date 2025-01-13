@@ -13,7 +13,7 @@ const taskSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+    enum: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'QUICK_SERVICE_PENDING'],
     default: 'OPEN'
   },
   budget: {
@@ -51,6 +51,13 @@ const taskSchema = new mongoose.Schema({
   provider: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  targetProvider: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  deadline: {
+    type: Date
   },
   priority: {
     type: String,

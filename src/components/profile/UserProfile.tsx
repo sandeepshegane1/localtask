@@ -60,10 +60,10 @@ export function UserProfile() {
   const { user, updateUser } = useAuthStore()
   const [isEditing, setIsEditing] = useState(false)
   const [userTasks, setUserTasks] = useState<Task[]>([])
-  const [reviews, setReviews] = useState<Review[]>([])
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [showReviewForm, setShowReviewForm] = useState(false)
-  const [submittedReviews, setSubmittedReviews] = useState<Set<string>>(new Set())
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [submittedReviews] = useState<Set<string>>(new Set());
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showReviewsModal, setShowReviewsModal] = useState(false)
 
   const { register, handleSubmit, reset } = useForm<UserData>({
@@ -124,9 +124,37 @@ export function UserProfile() {
     }
   }, [user?._id]);
 
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await api.get('/reviews/user-reviews');
+        console.log('Fetched reviews:', response.data);
+        setReviews(response.data || []);
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+        toast.error('Failed to fetch reviews');
+        setReviews([]); // Set empty array on error
+      }
+    };
+
+    if (user?._id) {
+      fetchReviews();
+    }
+  }, [user?._id]);
+
   const getReviewStatus = (task: Task) => {
-    const review = reviews.find(r => r.task._id === task._id);
-    const isJustSubmitted = submittedReviews.has(task._id);
+    // First check if task has a provider
+    if (!task?.provider) {
+      return {
+        canReview: false,
+        message: 'No provider assigned',
+        buttonStyle: 'text-gray-400 cursor-not-allowed'
+      };
+    }
+
+    // Safely check for review
+    const review = reviews?.find(r => r?.task?._id === task._id);
+    const isJustSubmitted = submittedReviews?.has(task._id);
     
     if (task.status !== 'COMPLETED') {
       return {
@@ -401,7 +429,7 @@ export function UserProfile() {
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(task.status, task.rejectedByProvider)}`}>
                                   {task.status === 'CANCELLED' && task.rejectedByProvider ? 'Rejected' : task.status}
                                 </span>
-                                {task.provider?._id && (
+                                {task.provider && task.provider._id && (
                                   <>
                                     {(() => {
                                       const reviewStatus = getReviewStatus(task);
@@ -457,6 +485,7 @@ export function UserProfile() {
             setSelectedTask(null);
           }}
           onReviewSubmitted={() => {
+            setReviews(prevReviews => [...prevReviews, { _id: selectedTask._id, task: { _id: selectedTask._id, title: selectedTask.title }, provider: { _id: selectedTask.provider?._id, name: selectedTask.provider?.name }, client: { _id: user?._id, name: user?.name }, rating: 0, comment: '', createdAt: new Date().toISOString() }]);
             setSubmittedReviews(prev => new Set([...prev, selectedTask._id]));
           }}
         />

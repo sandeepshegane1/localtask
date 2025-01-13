@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '../../stores/authStore';
 import { SERVICES } from '../../constants/services';
 import { WORKER_CATEGORIES } from '../../constants/workers';
 import { MapPin, Loader } from 'lucide-react';
@@ -100,16 +100,17 @@ export function ProviderRegistration() {
         email,
         password,
         role: 'PROVIDER',
-        providerType,
-        services: selectedServices,
+        category: providerType,
+        skills: selectedServices,
         location: {
-          latitude: location.latitude,
-          longitude: location.longitude
+          type: 'Point',
+          coordinates: [location.longitude, location.latitude]
         }
       };
 
       console.log('Sending user data:', userData);
       await registerUser(userData);
+      toast.success('Registration successful!');
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Registration error:', error);
