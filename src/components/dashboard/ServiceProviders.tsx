@@ -35,6 +35,7 @@ interface ServiceProvider extends User {
   };
   stats?: ProviderStats;
   reviewsCount?: number;
+  profilePhoto?: string;
 }
 
 interface Task {
@@ -84,11 +85,15 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const ProviderAvatar = ({ name }: { name: string }) => (
-  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center shadow-md">
-    <span className="text-purple-600 font-bold text-lg uppercase">
-      {name.charAt(0)}
-    </span>
+const ProviderAvatar = ({ name, profilePhoto }: { name: string; profilePhoto?: string }) => (
+  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center shadow-md overflow-hidden">
+    {profilePhoto ? (
+      <img src={profilePhoto} alt={name} className="w-full h-full object-cover" />
+    ) : (
+      <span className="text-purple-600 font-bold text-lg uppercase">
+        {name.charAt(0)}
+      </span>
+    )}
   </div>
 );
 
@@ -154,7 +159,7 @@ function ProviderCard({ provider, onSelect }: { provider: ServiceProvider; onSel
     <div className="bg-white rounded-lg shadow-sm p-6 flex flex-col">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center">
-          <ProviderAvatar name={provider.name} />
+          <ProviderAvatar name={provider.name} profilePhoto={provider.profilePhoto} />
           <div className="ml-4">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-900">{provider.name}</h3>
@@ -684,7 +689,7 @@ export function ServiceProviders() {
             {/* Provider Info Section */}
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center">
-                <ProviderAvatar name={provider.name} />
+                <ProviderAvatar name={provider.name} profilePhoto={provider.profilePhoto} />
                 <div className="ml-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">{provider.name}</h3>

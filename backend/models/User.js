@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema({
   skills: [{
     type: String
   }],
+  profilePhoto: {
+    type: String,
+    default: null
+  },
   location: {
     type: {
       type: String,

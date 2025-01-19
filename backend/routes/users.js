@@ -1,8 +1,81 @@
 import express from 'express';
 import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'uploads/profile-photos';
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const filetypes = /jpeg|jpg|png/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only .png, .jpg and .jpeg format allowed!'));
+  }
+});
+
+// Profile photo upload endpoint
+router.post('/upload-profile-photo', auth, upload.single('profilePhoto'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Get the relative path to the uploaded file
+    const profilePhotoUrl = `/${req.file.path.replace(/\\/g, '/')}`;
+
+    // Update user's profile photo URL
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Delete old profile photo if it exists
+    if (user.profilePhoto) {
+      const oldPhotoPath = path.join(process.cwd(), user.profilePhoto.substring(1));
+      if (fs.existsSync(oldPhotoPath)) {
+        fs.unlinkSync(oldPhotoPath);
+      }
+    }
+
+    user.profilePhoto = profilePhotoUrl;
+    await user.save();
+
+    res.json({ profilePhotoUrl });
+  } catch (error) {
+    console.error('Profile photo upload error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Serve uploaded files statically
+router.use('/uploads', express.static('uploads'));
 
 // Get user profile
 router.get('/profile', auth, async (req, res) => {
@@ -18,7 +91,7 @@ router.get('/profile', auth, async (req, res) => {
 // Update user profile
 router.patch('/profile', auth, async (req, res) => {
   const updates = Object.keys(req.body);
-  const allowedUpdates = ['name', 'email', 'location', 'skills'];
+  const allowedUpdates = ['name', 'email', 'location', 'skills', 'profilePhoto'];
   const isValidOperation = updates.every(update => allowedUpdates.includes(update));
 
   if (!isValidOperation) {

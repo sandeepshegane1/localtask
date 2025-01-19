@@ -1,6 +1,6 @@
 // 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
 import { Star, MapPin, Clock, Calendar, Edit2, X, Check, Tag, MessageSquare, User, Mail, Briefcase, MapPinIcon } from 'lucide-react'
@@ -19,6 +19,7 @@ interface UserData {
     type: string
     coordinates: [number, number]
   }
+  profilePhoto?: string
   createdAt: string
   updatedAt: string
 }
@@ -65,6 +66,8 @@ export function UserProfile() {
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [submittedReviews, setSubmittedReviews] = useState<Set<string>>(new Set())
   const [showReviewsModal, setShowReviewsModal] = useState(false)
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { register, handleSubmit, reset } = useForm<UserData>({
     defaultValues: {
@@ -76,6 +79,7 @@ export function UserProfile() {
         type: 'Point',
         coordinates: user?.location?.coordinates || [0, 0]
       },
+      profilePhoto: user?.profilePhoto,
       createdAt: user?.createdAt || '',
       updatedAt: user?.updatedAt || ''
     }
@@ -175,14 +179,12 @@ export function UserProfile() {
 
   const onSubmit = async (data: UserData) => {
     try {
-      // Convert skills to array if it's a string
       const skillsArray = typeof data.skills === 'string' 
         ? data.skills.split(',').map(skill => skill.trim()).filter(Boolean)
         : Array.isArray(data.skills) 
           ? data.skills 
           : [];
 
-      // Handle location coordinates
       let locationData = undefined;
       
       if (data.location && Array.isArray(data.location.coordinates)) {
@@ -206,23 +208,44 @@ export function UserProfile() {
         };
       }
 
-      // Only send updatable fields
+      // Handle profile photo upload
+      let profilePhotoUrl = user?.profilePhoto;
+      if (profilePhotoFile) {
+        const formData = new FormData();
+        formData.append('profilePhoto', profilePhotoFile);
+        
+        try {
+          const response = await api.post('/users/upload-profile-photo', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
+          profilePhotoUrl = response.data.profilePhotoUrl;
+        } catch (error) {
+          console.error('Failed to upload profile photo:', error);
+          toast.error('Failed to upload profile photo');
+          return;
+        }
+      }
+
       const updateData = {
         name: data.name.trim(),
         skills: skillsArray,
-        ...(locationData && { location: locationData })
+        ...(locationData && { location: locationData }),
+        ...(profilePhotoUrl && { profilePhoto: profilePhotoUrl })
       };
 
       console.log('Sending update data:', updateData);
       await updateUser(updateData);
       setIsEditing(false);
+      setProfilePhotoFile(null);
       
-      // Reset form with updated data
       reset({
         ...data,
         name: updateData.name,
         skills: skillsArray,
-        ...(locationData && { location: locationData })
+        ...(locationData && { location: locationData }),
+        ...(profilePhotoUrl && { profilePhoto: profilePhotoUrl })
       });
     } catch (error: any) {
       console.error('Failed to update profile:', error);
@@ -264,8 +287,44 @@ export function UserProfile() {
           <div className="md:flex">
             <div className="md:w-1/3 bg-gradient-to-br from-purple-400 to-purple-300 p-8 text-white">
               <div className="text-center mb-8">
-                <div className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center text-6xl font-bold text-purple-500 mb-4 border-4 border-white shadow-lg">
-                  {user?.name?.charAt(0)}
+                <div className="relative w-32 h-32 mx-auto">
+                  {user?.profilePhoto ? (
+                    <img
+                      src={user.profilePhoto}
+                      alt="Profile"
+                      className="w-full h-full rounded-full object-cover border-4 border-white shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-6xl font-bold text-purple-500 border-4 border-white shadow-lg">
+                      {user?.name?.charAt(0)}
+                    </div>
+                  )}
+                  {isEditing && (
+                    <div className="absolute bottom-0 right-0">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                              toast.error('File size should be less than 5MB');
+                              return;
+                            }
+                            setProfilePhotoFile(file);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-purple-500 hover:bg-purple-600 text-white p-2 rounded-full shadow-lg"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <h1 className="text-3xl font-bold">{user?.name}</h1>
                 <p className="text-purple-100 mt-2">{user?.role}</p>

@@ -33,6 +33,7 @@ interface Worker extends User {
   };
   stats?: ProviderStats;
   reviewsCount?: number;
+  profilePhoto?: string;
 }
 
 interface Task {
@@ -82,11 +83,15 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const WorkerAvatar = ({ name }: { name: string }) => (
-  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center shadow-md">
-    <span className="text-purple-600 font-bold text-lg uppercase">
-      {name.charAt(0)}
-    </span>
+const WorkerAvatar = ({ name, profilePhoto }: { name: string; profilePhoto?: string }) => (
+  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center shadow-md overflow-hidden">
+    {profilePhoto ? (
+      <img src={profilePhoto} alt={name} className="w-full h-full object-cover" />
+    ) : (
+      <span className="text-purple-600 font-bold text-lg uppercase">
+        {name.charAt(0)}
+      </span>
+    )}
   </div>
 );
 
@@ -591,7 +596,7 @@ export function WorkersByCategory() {
             {/* Worker Info Section */}
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center">
-                <WorkerAvatar name={worker.name} />
+                <WorkerAvatar name={worker.name} profilePhoto={worker.profilePhoto} />
                 <div className="ml-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">{worker.name}</h3>
