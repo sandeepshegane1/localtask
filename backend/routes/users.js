@@ -78,11 +78,7 @@ router.get('/providers', auth, async (req, res) => {
 
     // Add category filter if specified
     if (category) {
-      query.$or = [
-        { skills: { $in: [category.toUpperCase()] } },
-        { category: category.toUpperCase() },
-        { category: 'SERVICE' } // Include all service providers
-      ];
+      query.skills = { $in: [category.toUpperCase()] };
     }
 
     // Add location filter if coordinates are provided
