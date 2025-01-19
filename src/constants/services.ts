@@ -101,13 +101,6 @@ export const SERVICES: Service[] = [
     image: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=500'
   },
   {
-    category: 'ELDER_CARE',
-    title: 'Elder Care Services',
-    description: 'Professional care for seniors',
-    icon: Heart,
-    image: 'https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?auto=format&fit=crop&w=500'
-  },
-  {
     category: 'PERSONAL_ASSISTANT',
     title: 'Personal Assistant Services',
     description: 'Professional assistance for daily tasks',

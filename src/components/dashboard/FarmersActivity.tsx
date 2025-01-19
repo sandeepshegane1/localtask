@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Star, MapPin, Calendar, Info, Crosshair, TreesIcon as Plant } from 'lucide-react';
 import api from '../../lib/axios';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '../../stores/authStore';
 import { calculateDistance } from '../../utils/distance';
 import { FARMERS_SERVICES, FarmersServices } from '../../constants/farmers';
 
@@ -58,13 +58,13 @@ interface OrderFormData {
 // Utility Components
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-[400px]">
-    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-green-500 border-solid"></div>
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-purple-500 border-solid"></div>
   </div>
 );
 
 const FarmerAvatar = ({ name }: { name: string }) => (
-  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center shadow-md">
-    <span className="text-green-600 font-bold text-lg uppercase">
+  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center shadow-md">
+    <span className="text-purple-600 font-bold text-lg uppercase">
       {name.charAt(0)}
     </span>
   </div>
@@ -99,7 +99,7 @@ const FormInput = ({
       onChange={onChange}
       placeholder={placeholder}
       step={step}
-      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 ${
+      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-purple-500 ${
         error ? 'border-red-500' : 'border-gray-300'
       }`}
     />
@@ -285,7 +285,7 @@ export function FarmersActivity() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h2 className="text-3xl font-bold mb-8 text-green-800">Farmers Activity</h2>
+      <h2 className="text-3xl font-bold mb-8 text-purple-800">Farmers Activity</h2>
       
       {/* Category Selection */}
       <div className="mb-8">
@@ -297,8 +297,8 @@ export function FarmersActivity() {
               onClick={() => setSelectedCategory(service.category)}
               className={`p-4 rounded-lg flex flex-col items-center justify-center transition-colors ${
                 selectedCategory === service.category
-                  ? 'bg-green-500 text-white'
-                  : 'bg-green-100 text-green-800 hover:bg-green-200'
+                  ? 'bg-purple-500 text-white'
+                  : 'bg-purple-100 text-purple-800 hover:bg-purple-200'
               }`}
             >
               <service.icon className="w-8 h-8 mb-2" />
@@ -322,7 +322,7 @@ export function FarmersActivity() {
                   <div className="flex items-center mb-4">
                     <FarmerAvatar name={farmer.name} />
                     <div className="ml-4">
-                      <h3 className="text-xl font-semibold text-green-900">{farmer.name}</h3>
+                      <h3 className="text-xl font-semibold text-purple-900">{farmer.name}</h3>
                       <div className="flex items-center text-sm text-gray-600">
                         <Star className="w-4 h-4 text-yellow-400 fill-current mr-1" />
                         <span>
@@ -338,7 +338,7 @@ export function FarmersActivity() {
                   {/* Farmer Details */}
                   <div className="space-y-3 text-gray-700">
                     <div className="flex items-center">
-                      <MapPin className="w-5 h-5 mr-3 text-green-500" />
+                      <MapPin className="w-5 h-5 mr-3 text-purple-500" />
                       <span>
                         {farmer.location?.coordinates && buyerLocation
                           ? `${calculateDistance(
@@ -351,19 +351,19 @@ export function FarmersActivity() {
                       </span>
                     </div>
                     <div className="flex items-center">
-                      <Plant className="w-5 h-5 mr-3 text-green-500" />
+                      <Plant className="w-5 h-5 mr-3 text-purple-500" />
                       <span>{farmer.farmType || 'Mixed Farming'}</span>
                     </div>
                   </div>
 
                   {/* Crops */}
                   <div className="mt-4">
-                    <h4 className="font-medium mb-3 text-green-800">Crops</h4>
+                    <h4 className="font-medium mb-3 text-purple-800">Crops</h4>
                     <div className="flex flex-wrap gap-2">
                       {farmer.crops?.map((crop) => (
                         <span
                           key={crop}
-                          className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs"
+                          className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs"
                         >
                           {crop.replace('_', ' ')}
                         </span>
@@ -434,7 +434,7 @@ export function FarmersActivity() {
                           type="button"
                           onClick={getCurrentLocation}
                           disabled={isGettingLocation}
-                          className="flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center justify-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Crosshair className="w-5 h-5 mr-2" />
                           {isGettingLocation ? 'Getting Location...' : 'Get Current Location'}
@@ -460,7 +460,7 @@ export function FarmersActivity() {
                         name="quality"
                         value={orderFormData.quality}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500"
                       >
                         <option value="STANDARD">Standard</option>
                         <option value="PREMIUM">Premium</option>
@@ -472,8 +472,8 @@ export function FarmersActivity() {
                     <button
                       type="submit"
                       disabled={createOrderMutation.isPending}
-                      className="w-full bg-green-600 text-white py-3 rounded-md hover:bg-green-700 transition-colors 
-                        focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2
+                      className="w-full bg-purple-600 text-white py-3 rounded-md hover:bg-purple-700 transition-colors 
+                        focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2
                         disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {createOrderMutation.isPending ? 'Creating Order...' : 'Create Order'}

@@ -87,14 +87,14 @@ export function CompletedTasks() {
                     setSelectedTask(task);
                     setShowReviewForm(true);
                   }}
-                  className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                  className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
                 >
                   <Star className="w-4 h-4 mr-2" />
                   Add Review
                 </button>
               )}
               {hasReview(task._id) && (
-                <div className="flex items-center text-emerald-600">
+                <div className="flex items-center text-purple-600">
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Reviewed
                 </div>

@@ -26,10 +26,41 @@ router.patch('/profile', auth, async (req, res) => {
   }
 
   try {
-    updates.forEach(update => req.user[update] = req.body[update]);
-    await req.user.save();
-    res.json(req.user);
+    // Find the user again to ensure we have a proper Mongoose document
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update each field
+    if (updates.includes('name')) {
+      user.name = req.body.name;
+    }
+    
+    if (updates.includes('skills')) {
+      user.skills = Array.isArray(req.body.skills) ? req.body.skills : [];
+    }
+    
+    if (updates.includes('location')) {
+      if (!req.body.location || !req.body.location.coordinates || !Array.isArray(req.body.location.coordinates)) {
+        return res.status(400).json({ error: 'Invalid location format' });
+      }
+      
+      const coordinates = req.body.location.coordinates.map(coord => Number(coord));
+      if (coordinates.some(coord => isNaN(coord))) {
+        return res.status(400).json({ error: 'Coordinates must be valid numbers' });
+      }
+      
+      user.location = {
+        type: 'Point',
+        coordinates: coordinates
+      };
+    }
+
+    await user.save();
+    res.json(user);
   } catch (error) {
+    console.error('Profile update error:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -37,24 +68,24 @@ router.patch('/profile', auth, async (req, res) => {
 // Get service providers by category
 router.get('/providers', auth, async (req, res) => {
   console.log('Request received for /providers with query:', req.query);
-
   try {
     const { category, lat, lng } = req.query;
     
-    // Validate category
-    if (!category) {
-      return res.status(400).json({ error: 'Category is required' });
-    }
-
-    const query = {
-      role: 'PROVIDER',
-      // Use $in to match if category is in skills array (case-insensitive)
-      skills: { 
-        $in: [category.toUpperCase()] 
-      }
+    // Base query to get all providers
+    let query = {
+      role: 'PROVIDER'
     };
 
-    // Optional location-based filtering
+    // Add category filter if specified
+    if (category) {
+      query.$or = [
+        { skills: { $in: [category.toUpperCase()] } },
+        { category: category.toUpperCase() },
+        { category: 'SERVICE' } // Include all service providers
+      ];
+    }
+
+    // Add location filter if coordinates are provided
     if (lat && lng) {
       query.location = {
         $near: {
@@ -67,22 +98,27 @@ router.get('/providers', auth, async (req, res) => {
       };
     }
 
-    // Log the query for debugging
-    //console.log('Providers Query:', query);
+    console.log('Finding providers with query:', JSON.stringify(query, null, 2));
 
     const providers = await User.find(query)
       .select('-password')
-      .limit(20);
+      .sort({ createdAt: -1 });
 
-    //console.log('Providers Found:', providers);
+    console.log(`Found ${providers.length} providers:`, 
+      providers.map(p => ({ 
+        id: p._id, 
+        name: p.name, 
+        category: p.category, 
+        skills: p.skills 
+      }))
+    );
 
     res.json(providers);
   } catch (error) {
-   // console.error('Providers Error:', error);
+    console.error('Error fetching providers:', error);
     res.status(500).json({ error: error.message });
   }
 });
-
 
 router.get('/farmers', auth, async (req, res) => {
   try {
@@ -133,7 +169,6 @@ router.get('/farmers', auth, async (req, res) => {
   }
 });
 
-
 // Get workers by category (similar to providers)
 router.get('/workers', auth, async (req, res) => {
   console.log('Request received for /workers with query:', req.query);
@@ -170,6 +205,5 @@ router.get('/workers', auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 export default router;

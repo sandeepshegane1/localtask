@@ -1,6 +1,7 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+import { NavLink, Link } from 'react-router-dom';
+import { Menu } from 'lucide-react';
+import { useAuthStore } from '../../stores/authStore';
 
 export function DashboardNav() {
   const user = useAuthStore((state) => state.user);
@@ -40,4 +41,3 @@ export function DashboardNav() {
     </nav>
   );
 }
-

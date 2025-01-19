@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, DollarSign, MapPin, CheckCircle, Trash2, User, PenToolIcon as Tool, Tractor } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '../../lib/axios';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '../../stores/authStore';
 
 interface Farmer {
   _id: string;
@@ -114,7 +114,7 @@ export function FarmerDashboard() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-100">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-500"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-500"></div>
       </div>
     );
   }
@@ -168,7 +168,7 @@ export function FarmerDashboard() {
           <p className="font-semibold">Supported Crop Types:</p>
           <div className="flex flex-wrap gap-2 mt-1">
             {farmerData.serviceExpertise.supportedCropTypes.map((crop, index) => (
-              <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+              <span key={index} className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-sm">
                 {crop}
               </span>
             ))}
@@ -191,7 +191,7 @@ export function FarmerDashboard() {
           <button
             onClick={() => setActiveServiceTab('available')}
             className={`px-4 py-2 rounded-md ${
-              activeServiceTab === 'available' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
+              activeServiceTab === 'available' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-700'
             }`}
           >
             Available
@@ -222,15 +222,15 @@ export function FarmerDashboard() {
                   <h3 className="text-lg font-semibold mb-2">{service.serviceName}</h3>
                   <p className="text-sm text-gray-600 mb-2">{service.description}</p>
                   <div className="flex items-center mb-2">
-                    <DollarSign className="w-4 h-4 mr-1 text-green-500" />
+                    <DollarSign className="w-4 h-4 mr-1 text-purple-500" />
                     <span className="text-sm">${service.price}</span>
                   </div>
                   <div className="flex items-center mb-2">
-                    <MapPin className="w-4 h-4 mr-1 text-green-500" />
+                    <MapPin className="w-4 h-4 mr-1 text-purple-500" />
                     <span className="text-sm">{service.serviceArea.states.join(', ')}</span>
                   </div>
                   <div className="flex items-center mb-2">
-                    <Clock className="w-4 h-4 mr-1 text-green-500" />
+                    <Clock className="w-4 h-4 mr-1 text-purple-500" />
                     <span className="text-sm">{service.availability.daysAvailable.join(', ')}</span>
                   </div>
                   <div className="mt-4">
@@ -245,7 +245,7 @@ export function FarmerDashboard() {
                     {activeServiceTab === 'booked' && (
                       <button
                         onClick={() => updateServiceStatus(service._id, 'COMPLETED')}
-                        className="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors"
+                        className="w-full bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors"
                       >
                         Mark as Completed
                       </button>
@@ -270,7 +270,7 @@ export function FarmerDashboard() {
           {farmerData.resources.machineryOwned.map((machine, index) => (
             <div key={index} className="border rounded-lg p-4 shadow-sm">
               <div className="flex items-center mb-2">
-                <Tractor className="w-5 h-5 text-green-500 mr-2" />
+                <Tractor className="w-5 h-5 text-purple-500 mr-2" />
                 <span className="font-semibold">{machine.type}</span>
               </div>
               <p className="text-sm text-gray-600">Model: {machine.model}</p>
@@ -284,7 +284,7 @@ export function FarmerDashboard() {
         <h3 className="text-xl font-semibold mb-2">Additional Equipment</h3>
         <div className="flex flex-wrap gap-2">
           {farmerData.resources.additionalEquipment.map((equipment, index) => (
-            <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+            <span key={index} className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-sm">
               {equipment}
             </span>
           ))}
@@ -301,7 +301,7 @@ export function FarmerDashboard() {
           <button
             onClick={() => setActiveTab('profile')}
             className={`px-4 py-2 rounded-md ${
-              activeTab === 'profile' ? 'bg-green-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+              activeTab === 'profile' ? 'bg-purple-500 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             Profile
@@ -309,7 +309,7 @@ export function FarmerDashboard() {
           <button
             onClick={() => setActiveTab('services')}
             className={`px-4 py-2 rounded-md ${
-              activeTab === 'services' ? 'bg-green-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+              activeTab === 'services' ? 'bg-purple-500 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             Services
@@ -317,7 +317,7 @@ export function FarmerDashboard() {
           <button
             onClick={() => setActiveTab('resources')}
             className={`px-4 py-2 rounded-md ${
-              activeServiceTab === 'resources' ? 'bg-green-500 text-white' : 'text-gray-700 hover:bg-gray-100'
+              activeTab === 'resources' ? 'bg-purple-500 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             Resources
@@ -330,4 +330,3 @@ export function FarmerDashboard() {
     </div>
   );
 }
-

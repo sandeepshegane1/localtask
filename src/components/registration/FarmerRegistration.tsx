@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '../../stores/authStore';
+import { Farmers } from '../../stores/authStore';
 import { MapPin, Loader } from 'lucide-react';
-import { Farmers } from '../../store/authStore';
 
 type FormData = {
   firstName: string;
@@ -193,7 +193,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">First Name</label>
               <input
                 {...register("firstName", { required: "First name is required" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               />
               {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
             </div>
@@ -201,7 +201,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Last Name</label>
               <input
                 {...register("lastName")}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               />
             </div>
             <div>
@@ -214,7 +214,7 @@ export default function FarmerRegistration() {
                     message: "Invalid Indian mobile number"
                   }
                 })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               />
               {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
             </div>
@@ -228,7 +228,7 @@ export default function FarmerRegistration() {
                     message: "Invalid email address"
                   }
                 })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
             </div>
@@ -240,7 +240,7 @@ export default function FarmerRegistration() {
                   minLength: { value: 6, message: "Password must be at least 6 characters long" }
                 })}
                 type="password"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               />
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
@@ -248,7 +248,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Role</label>
               <select
                 {...register("role", { required: "Role selection is required" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               >
                 <option value="">Select role</option>
                 <option value="FARMER">Farmer</option>
@@ -265,7 +265,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Primary Specialization</label>
               <select
                 {...register("primarySpecialization", { required: "Primary specialization is required" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               >
                 <option value="">Select specialization</option>
                 {specializations.map((spec) => (
@@ -283,7 +283,7 @@ export default function FarmerRegistration() {
                       type="checkbox"
                       {...register("supportedCropTypes")}
                       value={crop}
-                      className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      className="focus:ring-purple-500 h-4 w-4 text-purple-600 border-gray-300 rounded"
                     />
                     <label className="ml-2 block text-sm text-gray-900">
                       {crop}
@@ -302,7 +302,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Service Name</label>
               <input
                 {...register("serviceName", { required: "Service name is required" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               />
               {errors.serviceName && <p className="text-red-500 text-xs mt-1">{errors.serviceName.message}</p>}
             </div>
@@ -310,7 +310,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Service Description</label>
               <textarea
                 {...register("serviceDescription", { required: "Service description is required" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                 rows={3}
               />
               {errors.serviceDescription && <p className="text-red-500 text-xs mt-1">{errors.serviceDescription.message}</p>}
@@ -319,7 +319,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">State Served</label>
               <select
                 {...register("statesServed", { required: "State must be selected" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               >
                 <option value="">Select state</option>
                 {indianStates.map((state) => (
@@ -332,7 +332,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">District Served</label>
               <input
                 {...register("districtsServed", { required: "District is required" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                 placeholder="Enter district"
               />
               {errors.districtsServed && <p className="text-red-500 text-xs mt-1">{errors.districtsServed.message}</p>}
@@ -346,7 +346,7 @@ export default function FarmerRegistration() {
                       type="checkbox"
                       {...register("daysAvailable")}
                       value={day}
-                      className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                      className="focus:ring-purple-500 h-4 w-4 text-purple-600 border-gray-300 rounded"
                     />
                     <label className="ml-2 block text-sm text-gray-900">
                       {day}
@@ -362,7 +362,7 @@ export default function FarmerRegistration() {
                   <label className="block text-xs text-gray-700">Start Month</label>
                   <select
                     {...register("seasonalStartMonth")}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                   >
                     <option value="">Select month</option>
                     {months.map((month) => (
@@ -374,7 +374,7 @@ export default function FarmerRegistration() {
                   <label className="block text-xs text-gray-700">End Month</label>
                   <select
                     {...register("seasonalEndMonth")}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                   >
                     <option value="">Select month</option>
                     {months.map((month) => (
@@ -397,7 +397,7 @@ export default function FarmerRegistration() {
                   <div key={index} className="flex space-x-2">
                     <select
                       {...register(`machineryOwned.${index}.type` as const)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                     >
                       <option value="">Select type</option>
                       {machineryTypes.map((type) => (
@@ -407,17 +407,17 @@ export default function FarmerRegistration() {
                     <input
                       {...register(`machineryOwned.${index}.model` as const)}
                       placeholder="Model"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                     />
                     <input
                       type="number"
                       {...register(`machineryOwned.${index}.manufacturingYear` as const)}
                       placeholder="Year"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                     />
                     <select
                       {...register(`machineryOwned.${index}.condition` as const)}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                     >
                       <option value="">Select condition</option>
                       <option value="Excellent">Excellent</option>
@@ -433,7 +433,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Additional Equipment</label>
               <input
                 {...register("additionalEquipment")}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
                 placeholder="Comma-separated list of additional equipment"
               />
             </div>
@@ -447,7 +447,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Registration Type</label>
               <select
                 {...register("registrationType", { required: "Registration type is required" })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               >
                 <option value="">Select registration type</option>
                 {registrationTypes.map((type) => (
@@ -460,7 +460,7 @@ export default function FarmerRegistration() {
               <label className="block text-sm font-medium text-gray-700">Business Registration Number</label>
               <input
                 {...register("businessRegistrationNumber")}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50"
               />
             </div>
             <div>
@@ -470,7 +470,7 @@ export default function FarmerRegistration() {
                   type="button"
                   onClick={getCurrentLocation}
                   disabled={isGettingLocation}
-                  className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                 >
                   {isGettingLocation ? (
                     <>
@@ -518,7 +518,7 @@ export default function FarmerRegistration() {
           )}
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
           >
             {step < 5 ? 'Next' : 'Submit'}
           </button>

@@ -19,19 +19,19 @@ export function Register() {
           <div className="space-y-4">
             <button
               onClick={() => setSelectedRole('CLIENT')}
-              className="w-full flex justify-center py-3 px-4 border-2 border-emerald-600 rounded-md shadow-sm text-sm font-medium text-emerald-600 bg-white hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+              className="w-full flex justify-center py-3 px-4 border-2 border-purple-600 rounded-md shadow-sm text-sm font-medium text-purple-600 bg-white hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
             >
               Register as Client
             </button>
             <button
               onClick={() => setSelectedRole('PROVIDER')}
-              className="w-full flex justify-center py-3 px-4 border-2 border-emerald-600 rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+              className="w-full flex justify-center py-3 px-4 border-2 border-purple-600 rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
             >
               Register as Service Provider
             </button>
             <button
               onClick={() => setSelectedRole('FARMER')}
-              className="w-full flex justify-center py-3 px-4 border-2 border-emerald-600 rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+              className="w-full flex justify-center py-3 px-4 border-2 border-purple-600 rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
             >
               Register as Farmer
             </button>
@@ -47,7 +47,7 @@ export function Register() {
             )}
             <button
               onClick={() => setSelectedRole(null)}
-              className="mt-4 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+              className="mt-4 w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
             >
               Back to Role Selection
             </button>
@@ -57,4 +57,3 @@ export function Register() {
     </div>
   );
 }
-

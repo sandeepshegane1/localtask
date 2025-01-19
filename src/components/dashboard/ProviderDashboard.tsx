@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, DollarSign, MapPin, CheckCircle, Trash2, X, Share2, Navigation, Copy } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import api from '../../lib/axios';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '../../stores/authStore';
 import { useGoogleMaps } from '@/hooks/useGoogleMaps';
 import { useGeolocation } from '@/hooks/useGeolocation';
 
@@ -18,7 +18,7 @@ interface Task {
   _id: string;
   title: string;
   description: string;
-  status: 'OPEN' | 'ASSIGNED' | 'COMPLETED';
+  status: 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'QUICK_SERVICE_PENDING' | 'REJECTED';
   budget: number;
   category: string;
   createdAt: string;
@@ -27,6 +27,7 @@ interface Task {
     type: string;
     coordinates: [number, number]; // [longitude, latitude]
   };
+  deadline?: string;
 }
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -228,10 +229,10 @@ const TaskNavigationMap: React.FC<TaskNavigationMapProps> = ({ taskLocation, con
             
             <button
               onClick={copyMapLink}
-              className="flex flex-col items-center justify-center p-2 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
+              className="flex flex-col items-center justify-center p-2 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
             >
-              <Copy className="w-5 h-5 text-emerald-600 mb-1" />
-              <span className="text-xs text-emerald-600 font-medium">Copy Link</span>
+              <Copy className="w-5 h-5 text-purple-600 mb-1" />
+              <span className="text-xs text-purple-600 font-medium">Copy Link</span>
             </button>
           </div>
         </div>
@@ -242,14 +243,12 @@ const TaskNavigationMap: React.FC<TaskNavigationMapProps> = ({ taskLocation, con
 
 export function ProviderDashboard() {
   const user = useAuthStore((state) => state.user) as User | null;
-  const [activeTab, setActiveTab] = useState<'open' | 'assigned' | 'completed'>('open');
+  const [activeTab, setActiveTab] = useState<'quick' | 'open' | 'assigned' | 'completed'>('open');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [showMap, setShowMap] = useState(false);
   const queryClient = useQueryClient();
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
+  const [selectedTaskForMap, setSelectedTaskForMap] = useState<Task | null>(null);
 
+  // Get current location
   useEffect(() => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -261,424 +260,272 @@ export function ProviderDashboard() {
         },
         (error) => {
           console.error("Error getting location:", error);
-          toast.error("Failed to get your current location");
+          toast.error("Failed to get your location. Tasks will be shown without distance information.");
+          // Set a default location or proceed without location
+          setCurrentLocation(null);
         }
       );
-    } else {
-      toast.error("Geolocation is not supported by your browser");
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedTaskId && showMap) {
-      console.log('Attempting to show map for task:', selectedTaskId);
-      // Use a longer delay to ensure the DOM has updated
-      const timer = setTimeout(() => {
-        const mapElement = document.getElementById(`map-container-${selectedTaskId}`);
-        console.log('Map element found:', !!mapElement);
-        if (mapElement) {
-          mapElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 1500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [selectedTaskId, showMap]);
-
-  if (!user) {
-    toast.error('User is not authenticated');
-    return null;
-  }
-
-  const { data: tasks, isLoading, error } = useQuery({
-    queryKey: ['provider-tasks', activeTab, user._id, currentLocation],
+  // Fetch tasks based on active tab
+  const { data: tasks = [], isLoading, error } = useQuery({
+    queryKey: ['provider-tasks', activeTab, currentLocation?.lat, currentLocation?.lng, user?._id],
     queryFn: async () => {
+      console.log('Fetching tasks with params:', {
+        status: activeTab === 'quick' ? 'QUICK_SERVICE_PENDING' : activeTab.toUpperCase(),
+        lat: currentLocation?.lat,
+        lng: currentLocation?.lng,
+        userId: user?._id
+      });
+
       const response = await api.get('/tasks/provider', {
         params: {
-          status: activeTab === 'open' ? 'OPEN' : 
-                  activeTab === 'assigned' ? 'ASSIGNED' : 
-                  'COMPLETED',
-        },
+          status: activeTab === 'quick' ? 'QUICK_SERVICE_PENDING' : activeTab.toUpperCase(),
+          lat: currentLocation?.lat,
+          lng: currentLocation?.lng
+        }
       });
-      return response.data
-        .filter((task: Task) => {
-          const taskProviderId = typeof task.provider === 'object' && task.provider?.$oid 
-            ? task.provider.$oid 
-            : task.provider;
-          
-          return taskProviderId === user._id;
-        })
-        .map((task: Task) => ({
 
-          ...task,
-          distance: currentLocation
-            ? calculateDistance(
-                currentLocation.lat,
-                currentLocation.lng,
-                task.location.coordinates[1],
-                task.location.coordinates[0]
-              )
-            : null
-        }));
+      return response.data;
     },
-    onError: (error) => {
-      console.error('Failed to fetch tasks:', error);
-      setNotification({ message: 'Failed to load tasks', type: 'error' });
-    },
-    enabled: !!currentLocation,
+    enabled: !!user?._id,
+    refetchOnWindowFocus: true,
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  const hasActiveTask = useMemo(() => {
-    return tasks?.some((task: Task) => 
-      task.status === 'ASSIGNED' && 
-      (task.provider?._id === user?._id || task.provider === user?._id)
-    ) ?? false;
-  }, [tasks, user?._id]);
-
-  useEffect(() => {
-    if (!tasks) return;
-
-    const filtered = tasks.filter((task: Task) => {
-      switch (activeTab) {
-        case 'open':
-          // Only show open tasks if provider doesn't have an active task
-          return task.status === 'OPEN' && !hasActiveTask;
-        case 'assigned':
-          const taskProviderId = task.provider?._id || task.provider;
-          return task.status === 'ASSIGNED' && taskProviderId === user?._id;
-        case 'completed':
-          return task.status === 'COMPLETED' && 
-            (task.provider?._id === user?._id || task.provider === user?._id);
-        default:
-          return false;
-      }
-    });
-
-    console.log('Filtering tasks:', {
-      total: tasks.length,
-      filtered: filtered.length,
-      activeTab,
-      hasActiveTask
-    });
-
-    setFilteredTasks(filtered);
-  }, [tasks, activeTab, user?._id, hasActiveTask]);
-
-  useEffect(() => {
-    setSelectedTaskId(null);
-    setShowMap(false);
-  }, [activeTab]);
-
-  const acceptTask = async (taskId: string) => {
+  // Accept task handler
+  const handleAcceptTask = async (taskId: string) => {
     try {
-      // Check if provider already has an active task
-      if (hasActiveTask) {
-        setNotification({
-          message: 'You already have an active task. Please complete it before accepting a new one.',
-          type: 'error'
-        });
-        return;
-      }
-
-      console.log('Accepting task:', taskId);
+      await api.patch(`/tasks/${taskId}/accept`, {
+        status: 'ASSIGNED',
+        provider: user?._id
+      });
       
-      // First update UI state
-      setSelectedTaskId(taskId);
-      setShowMap(true);
-
-      // Update local tasks state immediately
-      setFilteredTasks(prevTasks => {
-        const updatedTasks = prevTasks.map(task => 
-          task._id === taskId 
-            ? { ...task, status: 'ASSIGNED', provider: user?._id } 
-            : task
-        );
-        console.log('Updated tasks locally:', updatedTasks);
-        return updatedTasks;
-      });
-
-      // Then make the API call
-      await api.patch(`/tasks/${taskId}`, { 
-        status: 'ASSIGNED', 
-        provider: user?._id 
-      });
-
-      // Switch to assigned tab
-      setActiveTab('assigned');
-
-      setNotification({
-        message: 'Task accepted successfully',
-        type: 'success'
-      });
-
-      // Invalidate queries after state updates
+      toast.success('Task accepted successfully');
       queryClient.invalidateQueries(['provider-tasks']);
-    } catch (error) {
-      console.error('Failed to accept task:', error);
-      setNotification({
-        message: 'Failed to accept task',
-        type: 'error'
-      });
-      // Reset UI state on error
-      setSelectedTaskId(null);
-      setShowMap(false);
+    } catch (error: any) {
+      console.error('Error accepting task:', error);
+      toast.error(error.response?.data?.error || 'Failed to accept task');
     }
   };
 
-  const completeTask = async (taskId: string) => {
+  const handleCompleteTask = async (taskId: string) => {
     try {
-      await api.patch(`/tasks/${taskId}`, { status: 'COMPLETED' });
-      setNotification({ message: 'Task completed successfully', type: 'success' });
+      await api.patch(`/tasks/${taskId}/complete`);
+      toast.success('Task marked as completed');
       queryClient.invalidateQueries(['provider-tasks']);
-    } catch (error) {
-      console.error('Failed to complete task:', error);
-      setNotification({ message: 'Failed to complete task', type: 'error' });
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to complete task');
     }
   };
 
-  const rejectTask = async (taskId: string) => {
+  const handleRejectTask = async (taskId: string) => {
     try {
-      await api.delete(`/tasks/${taskId}`);
-      setNotification({ message: 'Task rejected successfully', type: 'success' });
-      queryClient.invalidateQueries(['provider-tasks']);
-    } catch (error) {
-      console.error('Failed to reject task:', error);
-      setNotification({ message: 'Failed to reject task', type: 'error' });
+      const response = await api.patch(`/tasks/${taskId}/reject`);
+      
+      if (response.data.success) {
+        queryClient.invalidateQueries(['provider-tasks']);
+        toast.success(response.data.message);
+      } else {
+        // If the backend sends a non-error response but without success flag
+        console.warn('Unexpected response format:', response.data);
+        toast.success('Task rejected');
+      }
+    } catch (error: any) {
+      // Log the full error for debugging
+      console.error('Error rejecting task:', error);
+      
+      // Get the most specific error message available
+      const errorMessage = 
+        error.response?.data?.details || // Specific error details
+        error.response?.data?.error ||   // General error message
+        error.message ||                 // Axios error message
+        'Failed to reject task';         // Fallback message
+      
+      toast.error(errorMessage);
+      
+      // Log additional details if available
+      if (error.response?.data?.stack) {
+        console.debug('Error stack:', error.response.data.stack);
+      }
     }
   };
 
-  if (isLoading) {
+  if (!user) {
     return (
-      <div className="flex justify-center items-center min-h-[400px] bg-gray-50">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 text-red-700 text-center p-8 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-4">Oops! Something went wrong</h2>
-        <p className="mb-4">Failed to load tasks. Please try again later.</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="bg-red-600 text-white px-6 py-2 rounded-md hover:bg-red-700 transition-colors"
-        >
-          Reload
-        </button>
-      </div>
-    );
-  }
-
-  console.log('Rendering ProviderDashboard with:', {
-    selectedTaskId,
-    showMap,
-    filteredTasks: filteredTasks?.length,
-    tasks: tasks?.length
-  });
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white shadow-xl rounded-lg">
-          {/* Dashboard Header */}
-          <div className="p-6 border-b">
-            <div className="flex justify-between items-center">
-              <h1 className="text-3xl font-bold text-gray-800">Provider Dashboard</h1>
-              <div className="bg-gray-100 rounded-lg p-1 flex space-x-1">
-                <button 
-                  onClick={() => setActiveTab('open')} 
-                  className={`px-4 py-2 rounded-md transition-all duration-300 ${
-                    activeTab === 'open' 
-                      ? 'bg-emerald-600 text-white' 
-                      : 'bg-transparent text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Open Tasks
-                </button>
-                <button 
-                  onClick={() => setActiveTab('assigned')} 
-                  className={`px-4 py-2 rounded-md transition-all duration-300 ${
-                    activeTab === 'assigned' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-transparent text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  My Tasks
-                </button>
-                <button 
-                  onClick={() => setActiveTab('completed')} 
-                  className={`px-4 py-2 rounded-md transition-all duration-300 ${
-                    activeTab === 'completed' 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-transparent text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Completed
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex">
-            {/* Task List */}
-            <div className={`${showMap ? 'w-1/3' : 'w-full'} p-6 border-r`}>
-              {filteredTasks.length === 0 ? (
-                <div className="text-center py-16 bg-gray-100 rounded-lg">
-                  <CheckCircle className="mx-auto w-16 h-16 text-gray-400 mb-4" />
-                  <p className="text-xl text-gray-600">
-                    {activeTab === 'open' && (hasActiveTask 
-                      ? 'Please complete your active task before accepting new tasks' 
-                      : 'No open tasks available')}
-                    {activeTab === 'assigned' && 'No tasks assigned to you'}
-                    {activeTab === 'completed' && 'No completed tasks'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {filteredTasks.map((task) => {
-                    const isSelected = task._id === selectedTaskId;
-                    const isAssignedToUser = task.status === 'ASSIGNED' && 
-                      (task.provider?._id === user?._id || task.provider === user?._id);
-
-                    return (
-                      <div 
-                        key={task._id} 
-                        className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${
-                          isSelected ? 'ring-2 ring-blue-500' : ''
-                        }`}
-                      >
-                        <div className="p-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-800 truncate mr-2">
-                              {task.title}
-                            </h3>
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                task.status === 'OPEN' ? 'bg-emerald-100 text-emerald-800' :
-                                task.status === 'ASSIGNED' ? 'bg-blue-100 text-blue-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>
-                                {task.status}
-                              </span>
-                              <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                                {task.category}
-                              </span>
-                            </div>
-                          </div>
-
-                          <p className="text-gray-600 mb-4 line-clamp-3">{task.description}</p>
-
-                          <div className="space-y-3 mb-4">
-                            <div className="flex items-center text-gray-500">
-                              <Clock className="w-5 h-5 mr-3 text-gray-400" />
-                              <span className="text-sm">
-                                Posted {new Date(task.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <div className="flex items-center text-gray-500">
-                              <DollarSign className="w-5 h-5 mr-3 text-gray-400" />
-                              <span className="text-sm">Budget: ${task.budget}</span>
-                            </div>
-                            <div className="flex items-center text-gray-500">
-                              <MapPin className="w-5 h-5 mr-3 text-gray-400" />
-                              <span className="text-sm">
-                                {task.distance !== null 
-                                  ? `${task.distance.toFixed(1)} km away` 
-                                  : 'Distance unavailable'}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex space-x-2">
-                            {task.status === 'OPEN' && (
-                              <>
-                                <button 
-                                  onClick={() => acceptTask(task._id)} 
-                                  className="flex-1 py-3 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors font-semibold"
-                                >
-                                  Accept Task
-                                </button>
-                                <button 
-                                  onClick={() => rejectTask(task._id)} 
-                                  className="px-3 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                                  aria-label="Reject Task"
-                                >
-                                  <Trash2 className="w-5 h-5" />
-                                </button>
-                              </>
-                            )}
-
-                            {isAssignedToUser && task.status !== 'COMPLETED' && (
-                              <>
-                                <button 
-                                  onClick={() => completeTask(task._id)} 
-                                  className="flex-1 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-semibold"
-                                >
-                                  Mark as Completed
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedTaskId(task._id);
-                                    setShowMap(true);
-                                  }}
-                                  className="px-3 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                                >
-                                  <MapPin className="w-5 h-5" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Map Section */}
-            {showMap && selectedTaskId && (
-              <div className="w-2/3 relative">
-                <div className="sticky top-0 h-[calc(100vh-4rem)]">
-                  <div className="absolute top-4 right-4 z-10">
-                    <button
-                      onClick={() => setShowMap(false)}
-                      className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <X className="w-6 h-6 text-gray-600" />
-                    </button>
-                  </div>
-                  {filteredTasks.map((task) => {
-                    if (task._id !== selectedTaskId) return null;
-                    return (
-                      <div 
-                        key={`map-${task._id}`}
-                        className="h-full"
-                      >
-                        <div 
-                          id={`map-container-${task._id}`} 
-                          className="h-full w-full rounded-lg overflow-hidden bg-gray-100"
-                        />
-                        <TaskNavigationMap 
-                          key={`map-${task._id}`}
-                          taskLocation={{
-                            lat: task.location.coordinates[1],
-                            lng: task.location.coordinates[0]
-                          }}
-                          containerId={`map-container-${task._id}`}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800">Not Authenticated</h2>
+          <p className="text-gray-600 mt-2">Please login to view your dashboard</p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-8">
+        <nav className="-mb-px flex space-x-8">
+          {[/* eslint-disable @typescript-eslint/no-use-before-define */
+            { id: 'open', label: 'Open Tasks' },
+            { id: 'quick', label: 'Quick Service Requests' },
+            { id: 'assigned', label: 'Assigned Tasks' },
+            { id: 'completed', label: 'Completed Tasks' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`${
+                activeTab === tab.id
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="text-center py-12">
+          <p className="text-red-500">Error loading tasks</p>
+          <p className="text-gray-600 mt-2">{(error as any).message}</p>
+        </div>
+      )}
+
+      {/* Tasks Grid */}
+      {!isLoading && !error && (
+        <>
+          {tasks.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No {activeTab} tasks found</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {tasks.map((task: Task) => (
+                <div
+                  key={task._id}
+                  className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
+                    task.status === 'QUICK_SERVICE_PENDING'
+                      ? 'border-purple-500'
+                      : task.status === 'ASSIGNED'
+                      ? 'border-purple-500'
+                      : task.status === 'COMPLETED'
+                      ? 'border-purple-500'
+                      : 'border-gray-500'
+                  }`}
+                >
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{task.title}</h3>
+                  <p className="text-gray-600 mb-4">{task.description}</p>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center text-gray-500">
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      <span>${task.budget}</span>
+                    </div>
+                    
+                    {task.deadline && (
+                      <div className="flex items-center text-gray-500">
+                        <Clock className="w-4 h-4 mr-2" />
+                        <span>{new Date(task.deadline).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    
+                    {task.location && currentLocation && (
+                      <div className="flex items-center text-gray-500">
+                        <MapPin className="w-4 h-4 mr-2" />
+                        <span>
+                          {calculateDistance(
+                            currentLocation.lat,
+                            currentLocation.lng,
+                            task.location.coordinates[1],
+                            task.location.coordinates[0]
+                          )} km away
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center text-gray-500">
+                      <span className="font-medium">Category:</span>
+                      <span className="ml-2">{task.category}</span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  {(activeTab === 'open' || activeTab === 'quick') && (
+                    <div className="mt-4 flex justify-end space-x-2">
+                      {activeTab === 'open' && (
+                        <button
+                          onClick={() => handleRejectTask(task._id)}
+                          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                        >
+                          Reject
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleAcceptTask(task._id)}
+                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+                      >
+                        Accept Task
+                      </button>
+                    </div>
+                  )}
+                  {task.status === 'ASSIGNED' && (
+                    <div className="flex space-x-2 mt-4">
+                      <button
+                        onClick={() => handleCompleteTask(task._id)}
+                        className="flex items-center px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Complete Task
+                      </button>
+                      <button
+                        onClick={() => setSelectedTaskForMap(task)}
+                        className="flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                      >
+                        <Navigation className="w-4 h-4 mr-1" />
+                        Get Direction
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {selectedTaskForMap && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-4xl h-[80vh] relative">
+            <button
+              onClick={() => setSelectedTaskForMap(null)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="h-full p-4">
+              <TaskNavigationMap
+                taskLocation={{
+                  lat: selectedTaskForMap.location.coordinates[1],
+                  lng: selectedTaskForMap.location.coordinates[0]
+                }}
+                containerId="task-navigation-map"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
