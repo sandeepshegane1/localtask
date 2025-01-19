@@ -167,6 +167,12 @@ function ProviderCard({ provider, onSelect }: { provider: ServiceProvider; onSel
             </div>
           </div>
         </div>
+        <div className="ml-auto text-right">
+          <span className="text-2xl font-bold text-gray-900">
+            ₹{provider.hourlyRate}/hr
+          </span>
+          <p className="text-sm text-emerald-600">2 HOUR MINIMUM</p>
+        </div>
       </div>
 
       {provider.skills && provider.skills.length > 0 && (
@@ -339,7 +345,7 @@ const QuickServiceForm = ({ category, onClose }: {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Budget (INR)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Budget (₹)</label>
             <input
               type="number"
               value={formData.budget}
@@ -798,7 +804,7 @@ export function ServiceProviders() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormInput
-                      label="Budget"
+                      label="Budget (₹)"
                       type="number"
                       name="budget"
                       value={taskFormData.budget}

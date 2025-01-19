@@ -223,7 +223,7 @@ export function FarmerDashboard() {
                   <p className="text-sm text-gray-600 mb-2">{service.description}</p>
                   <div className="flex items-center mb-2">
                     <DollarSign className="w-4 h-4 mr-1 text-purple-500" />
-                    <span className="text-sm">${service.price}</span>
+                    <span className="text-sm">₹{service.price}</span>
                   </div>
                   <div className="flex items-center mb-2">
                     <MapPin className="w-4 h-4 mr-1 text-purple-500" />

@@ -58,7 +58,7 @@ export function CreateTask() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Budget
+            Budget (₹)
           </label>
           <input
             {...register('budget')}
