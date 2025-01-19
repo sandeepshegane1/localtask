@@ -13,7 +13,7 @@ const taskSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+    enum: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'QUICK_SERVICE_PENDING', 'REJECTED', 'REJECTED'],
     default: 'OPEN'
   },
   budget: {
@@ -50,7 +50,15 @@ const taskSchema = new mongoose.Schema({
   },
   provider: {
     type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  },
+  targetProvider: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  deadline: {
+    type: Date
   },
   priority: {
     type: String,
@@ -60,7 +68,17 @@ const taskSchema = new mongoose.Schema({
   rejectedByProvider: {
     type: Boolean,
     default: false
-  }
+  },
+  rejectedBy: [{
+    provider: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    rejectedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
   timestamps: true
 });

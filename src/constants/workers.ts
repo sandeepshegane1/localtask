@@ -17,13 +17,6 @@ export const WORKER_CATEGORIES: WorkerCategory[] = [
     image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=500'
   },
   {
-    category: 'HANDYMAN',
-    title: 'Handyman',
-    description: 'General home repairs and maintenance',
-    icon: Home,
-    image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=500'
-  },
-  {
     category: 'CHEF',
     title: 'Chef',
     description: 'Professional cooking and meal preparation',

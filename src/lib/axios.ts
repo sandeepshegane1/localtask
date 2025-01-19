@@ -17,20 +17,20 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    let errorMessage = 'An error occurred. Please try again.';
+  // (error) => {
+  //   let errorMessage = 'pro';
     
-    if (error.response) {
-      // Server responded with error
-      errorMessage = error.response.data.error || errorMessage;
-    } else if (error.request) {
-      // No response received
-      errorMessage = 'Unable to connect to server. Please check your connection.';
-    }
+  //   if (error.response) {
+  //     // Server responded with error
+  //     errorMessage = error.response.data.error || errorMessage;
+  //   } else if (error.request) {
+  //     // No response received
+  //     errorMessage = 'Unable to connect to server. Please check your connection.';
+  //   }
     
-    toast.error(errorMessage);
-    throw error;
-  }
+  //   toast.error(errorMessage);
+  //   throw error;
+  // }
 );
 
 export default api;

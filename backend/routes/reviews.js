@@ -30,11 +30,11 @@ router.get('/provider/:providerId', async (req, res) => {
 });
 
 // Get review stats for a provider
-router.get('/provider/:providerId/stats', auth, async (req, res) => {
+router.get('/provider/:providerId/stats', async (req, res) => {
   try {
     const { category } = req.query;
     const query = {
-      provider: req.params.providerId,
+      provider: new mongoose.Types.ObjectId(req.params.providerId),
       ...(category && { serviceCategory: category })
     };
 
@@ -44,41 +44,23 @@ router.get('/provider/:providerId/stats', auth, async (req, res) => {
         $group: {
           _id: null,
           averageRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 },
-          ratings: {
-            $push: '$rating'
-          }
+          totalReviews: { $sum: 1 }
         }
       },
       {
         $project: {
           _id: 0,
           averageRating: { $round: ['$averageRating', 1] },
-          totalReviews: 1,
-          ratingDistribution: {
-            5: { $size: { $filter: { input: '$ratings', cond: { $eq: ['$$this', 5] } } } },
-            4: { $size: { $filter: { input: '$ratings', cond: { $eq: ['$$this', 4] } } } },
-            3: { $size: { $filter: { input: '$ratings', cond: { $eq: ['$$this', 3] } } } },
-            2: { $size: { $filter: { input: '$ratings', cond: { $eq: ['$$this', 2] } } } },
-            1: { $size: { $filter: { input: '$ratings', cond: { $eq: ['$$this', 1] } } } }
-          }
+          totalReviews: 1
         }
       }
     ]);
 
-    res.json(stats[0] || { 
-      averageRating: 0, 
-      totalReviews: 0, 
-      ratingDistribution: { 
-        5: 0, 
-        4: 0, 
-        3: 0, 
-        2: 0, 
-        1: 0 
-      } 
-    });
+    // Return default values if no reviews found
+    res.json(stats[0] || { averageRating: 0, totalReviews: 0 });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching provider stats:', error);
+    res.status(500).json({ error: 'Failed to fetch provider stats' });
   }
 });
 

@@ -75,7 +75,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'react-hot-toast';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '../../stores/authStore';
 
 export function ClientRegistration() {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();

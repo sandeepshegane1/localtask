@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '../../stores/authStore';
 import { SERVICES } from '../../constants/services';
 import { WORKER_CATEGORIES } from '../../constants/workers';
 import { MapPin, Loader } from 'lucide-react';
@@ -100,16 +100,17 @@ export function ProviderRegistration() {
         email,
         password,
         role: 'PROVIDER',
-        providerType,
-        services: selectedServices,
+        category: providerType,
+        skills: selectedServices,
         location: {
-          latitude: location.latitude,
-          longitude: location.longitude
+          type: 'Point',
+          coordinates: [location.longitude, location.latitude]
         }
       };
 
       console.log('Sending user data:', userData);
       await registerUser(userData);
+      toast.success('Registration successful!');
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -127,7 +128,7 @@ export function ProviderRegistration() {
             minLength: { value: 2, message: 'Name must be at least 2 characters' }
           })}
           type="text"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500"
         />
         {errors.name && <p className="text-red-500 text-xs">{errors.name.message as string}</p>}
       </div>
@@ -143,7 +144,7 @@ export function ProviderRegistration() {
             }
           })}
           type="email"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500"
         />
         {errors.email && <p className="text-red-500 text-xs">{errors.email.message as string}</p>}
       </div>
@@ -156,7 +157,7 @@ export function ProviderRegistration() {
             minLength: { value: 6, message: 'Password must be at least 6 characters' }
           })}
           type="password"
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500"
         />
         {errors.password && <p className="text-red-500 text-xs">{errors.password.message as string}</p>}
       </div>
@@ -165,7 +166,7 @@ export function ProviderRegistration() {
         <label className="block text-sm font-medium text-gray-700">Provider Type</label>
         <select
           {...register('providerType', { required: 'Provider type is required' })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500"
         >
           <option value="">Select type</option>
           <option value="SERVICE">Service Provider</option>
@@ -188,11 +189,11 @@ export function ProviderRegistration() {
             onClick={() => handleServiceToggle(item.category)}
             className={`p-4 border rounded-lg cursor-pointer transition-colors ${
               selectedServices.includes(item.category)
-                ? 'border-emerald-500 bg-emerald-50'
-                : 'border-gray-200 hover:border-emerald-200'
+                ? 'border-purple-500 bg-purple-50'
+                : 'border-gray-200 hover:border-purple-200'
             }`}
           >
-            <item.icon className="w-6 h-6 mb-2 text-emerald-600" />
+            <item.icon className="w-6 h-6 mb-2 text-purple-600" />
             <h3 className="font-medium">{item.title}</h3>
           </div>
         ))}
@@ -208,7 +209,7 @@ export function ProviderRegistration() {
           type="button"
           onClick={getCurrentLocation}
           disabled={isGettingLocation}
-          className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500"
+          className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
         >
           {isGettingLocation ? (
             <>
@@ -243,7 +244,7 @@ export function ProviderRegistration() {
         
         <button
           type="submit"
-          className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700"
+          className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
         >
           {step === 1 ? 'Next' : step === 2 ? 'Next' : 'Complete Registration'}
         </button>

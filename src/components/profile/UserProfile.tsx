@@ -1,10 +1,10 @@
-'use client'
+// 'use client'
 
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'react-hot-toast'
-import { Star, MapPin, Clock, Calendar, Edit2, X, Check, Tag, MessageSquare } from 'lucide-react'
-import { useAuthStore } from '../../store/authStore'
+import { Star, MapPin, Clock, Calendar, Edit2, X, Check, Tag, MessageSquare, User, Mail, Briefcase, MapPinIcon } from 'lucide-react'
+import { useAuthStore } from '../../stores/authStore'
 import api from '../../lib/axios'
 import { ReviewForm } from '../dashboard/ReviewForm'
 import { ReviewsModal } from './ReviewsModal'
@@ -124,9 +124,33 @@ export function UserProfile() {
     }
   }, [user?._id]);
 
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await api.get('/reviews/user-reviews');
+        console.log('Fetched reviews:', response.data);
+        setReviews(response.data || []);
+      } catch (error) {
+        setReviews([]); // Set empty array on error
+      }
+    };
+
+    if (user?._id) {
+      fetchReviews();
+    }
+  }, [user?._id]);
+
   const getReviewStatus = (task: Task) => {
-    const review = reviews.find(r => r.task._id === task._id);
-    const isJustSubmitted = submittedReviews.has(task._id);
+    if (!task?.provider) {
+      return {
+        canReview: false,
+        message: 'No provider assigned',
+        buttonStyle: 'text-gray-400 cursor-not-allowed'
+      };
+    }
+
+    const review = reviews?.find(r => r?.task?._id === task._id);
+    const isJustSubmitted = submittedReviews?.has(task._id);
     
     if (task.status !== 'COMPLETED') {
       return {
@@ -145,27 +169,67 @@ export function UserProfile() {
     return {
       canReview: true,
       message: 'Add Review',
-      buttonStyle: 'bg-emerald-600 text-white hover:bg-emerald-700'
+      buttonStyle: 'bg-purple-500 text-white hover:bg-purple-600'
     };
   };
 
   const onSubmit = async (data: UserData) => {
     try {
-      const updatedUser = await api.patch(`/users/${user?._id}`, {
-        ...data,
-        location: {
-          type: 'Point',
-          coordinates: data.location.coordinates
-        }
-      })
+      // Convert skills to array if it's a string
+      const skillsArray = typeof data.skills === 'string' 
+        ? data.skills.split(',').map(skill => skill.trim()).filter(Boolean)
+        : Array.isArray(data.skills) 
+          ? data.skills 
+          : [];
+
+      // Handle location coordinates
+      let locationData = undefined;
       
-      updateUser(updatedUser.data)
-      setIsEditing(false)
-      toast.success('Profile updated successfully')
-    } catch (error) {
-      toast.error('Failed to update profile')
+      if (data.location && Array.isArray(data.location.coordinates)) {
+        const coordinates = [
+          typeof data.location.coordinates[0] === 'string' 
+            ? parseFloat(data.location.coordinates[0]) 
+            : Number(data.location.coordinates[0]),
+          typeof data.location.coordinates[1] === 'string' 
+            ? parseFloat(data.location.coordinates[1]) 
+            : Number(data.location.coordinates[1])
+        ];
+
+        if (coordinates.some(coord => isNaN(coord))) {
+          toast.error('Location coordinates must be valid numbers');
+          return;
+        }
+
+        locationData = {
+          type: 'Point',
+          coordinates: coordinates
+        };
+      }
+
+      // Only send updatable fields
+      const updateData = {
+        name: data.name.trim(),
+        skills: skillsArray,
+        ...(locationData && { location: locationData })
+      };
+
+      console.log('Sending update data:', updateData);
+      await updateUser(updateData);
+      setIsEditing(false);
+      
+      // Reset form with updated data
+      reset({
+        ...data,
+        name: updateData.name,
+        skills: skillsArray,
+        ...(locationData && { location: locationData })
+      });
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to update profile';
+      toast.error(errorMessage);
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -183,7 +247,7 @@ export function UserProfile() {
     }
     switch (status) {
       case 'COMPLETED':
-        return 'bg-green-100 text-green-800'
+        return 'bg-purple-100 text-purple-800'
       case 'IN_PROGRESS':
         return 'bg-yellow-100 text-yellow-800'
       case 'OPEN':
@@ -194,257 +258,238 @@ export function UserProfile() {
   }
 
   return (
-    <div className="w-full p-8">
-      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="relative h-48 bg-gradient-to-r from-blue-500 to-purple-600">
-          <div className="absolute -bottom-16 left-8">
-            <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-              <span className="text-5xl font-bold text-blue-600">
-                {user?.name?.charAt(0)}
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="pt-20 px-8 pb-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">{user?.name}</h1>
-              <div className="flex items-center mt-2">
-                <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                <button 
-                  onClick={() => setShowReviewsModal(true)}
-                  className="ml-1 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  {reviews.length > 0
-                    ? `${(reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)} (${reviews.length} reviews)`
-                    : 'No reviews yet'}
-                </button>
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 to-purple-200 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+          <div className="md:flex">
+            <div className="md:w-1/3 bg-gradient-to-br from-purple-400 to-purple-300 p-8 text-white">
+              <div className="text-center mb-8">
+                <div className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center text-6xl font-bold text-purple-500 mb-4 border-4 border-white shadow-lg">
+                  {user?.name?.charAt(0)}
+                </div>
+                <h1 className="text-3xl font-bold">{user?.name}</h1>
+                <p className="text-purple-100 mt-2">{user?.role}</p>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <Mail className="w-5 h-5 mr-3" />
+                  <span>{user?.email}</span>
+                </div>
+                <div className="flex items-center">
+                  <MapPinIcon className="w-5 h-5 mr-3" />
+                  <span>
+                    Lat: {user?.location?.coordinates[0]}, 
+                    Lng: {user?.location?.coordinates[1]}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Clock className="w-5 h-5 mr-3" />
+                  <span>Joined: {formatDate(user?.createdAt || '')}</span>
+                </div>
               </div>
             </div>
-            <button
-              onClick={() => setIsEditing(!isEditing)}
-              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200"
-            >
-              {isEditing ? (
-                <>
-                  <X className="w-4 h-4 mr-2" />
-                  Cancel
-                </>
-              ) : (
-                <>
-                  <Edit2 className="w-4 h-4 mr-2" />
-                  Edit Profile
-                </>
-              )}
-            </button>
-          </div>
-
-          {isEditing ? (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="md:w-2/3 p-8">
+              <div className="flex justify-between items-center mb-8">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input
-                    {...register('name')}
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    {...register('email')}
-                    type="email"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <select
-                    {...register('role')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="CLIENT">Client</option>
-                    <option value="PROVIDER">Provider</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
-                  <input
-                    {...register('skills')}
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="mt-1 text-sm text-gray-500">Enter skills separated by commas</p>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location (latitude, longitude)
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    {...register('location.coordinates.0')}
-                    type="number"
-                    step="any"
-                    placeholder="Latitude"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input
-                    {...register('location.coordinates.1')}
-                    type="number"
-                    step="any"
-                    placeholder="Longitude"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    reset()
-                    setIsEditing(false)
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="bg-gray-50 rounded-lg p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">User Information</h3>
-                  <div className="space-y-3">
-                    <p className="text-gray-600">
-                      <span className="font-medium">Name:</span> {user?.name}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Email:</span> {user?.email}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Role:</span> {user?.role}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">User ID:</span> {user?._id}
-                    </p>
-                    <div className="flex items-center text-gray-600">
-                      <MapPin className="w-5 h-5 mr-2 text-blue-500" />
-                      <span>
-                        Lat: {user?.location?.coordinates[0]}, 
-                        Lng: {user?.location?.coordinates[1]}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-gray-50 rounded-lg p-6 shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Account Details</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center text-gray-600">
-                      <Clock className="w-5 h-5 mr-2 text-blue-500" />
-                      <span>Created: {formatDate(user?.createdAt || '')}</span>
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <Calendar className="w-5 h-5 mr-2 text-blue-500" />
-                      <span>Last Updated: {formatDate(user?.updatedAt || '')}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-6 shadow-sm lg:col-span-3">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                  <Tag className="w-5 h-5 mr-2 text-blue-500" />
-                  Skills
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {user?.skills && user.skills.length > 0 ? (
-                    user.skills.map((skill: string) => (
-                      <span
-                        key={skill}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                      >
-                        {skill}
-                      </span>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 italic">No skills listed</p>
-                  )}
-                </div>
-              </div>
-
-              {user?.role === 'CLIENT' && (
-                <>
-                  <div className="bg-gray-50 rounded-lg p-6 shadow-sm lg:col-span-3">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <Calendar className="w-5 h-5 mr-2 text-blue-500" />
-                      Booked Services
-                    </h3>
-                    {userTasks.length > 0 ? (
-                      <div className="space-y-4">
-                        {userTasks.map((task) => (
-                          <div key={task._id} className="bg-white p-4 rounded-md shadow-sm">
-                            <h4 className="font-medium text-gray-800">{task.title}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                            <div className="flex justify-between items-center mt-2">
-                              <div className="flex items-center space-x-4">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(task.status, task.rejectedByProvider)}`}>
-                                  {task.status === 'CANCELLED' && task.rejectedByProvider ? 'Rejected' : task.status}
-                                </span>
-                                {task.provider?._id && (
-                                  <>
-                                    {(() => {
-                                      const reviewStatus = getReviewStatus(task);
-                                      return (
-                                        <div className="flex items-center">
-                                          {reviewStatus.canReview ? (
-                                            <button
-                                              onClick={() => {
-                                                setSelectedTask(task);
-                                                setShowReviewForm(true);
-                                              }}
-                                              className={`flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${reviewStatus.buttonStyle}`}
-                                            >
-                                              <Star className="w-3 h-3 mr-1" />
-                                              {reviewStatus.message}
-                                            </button>
-                                          ) : (
-                                            <span className={`flex items-center text-xs ${reviewStatus.buttonStyle}`}>
-                                              <MessageSquare className="w-3 h-3 mr-1" />
-                                              {reviewStatus.message}
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })()}
-                                  </>
-                                )}
-                              </div>
-                              <span className="text-sm text-gray-500">
-                                {formatDate(task.createdAt)}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                  <h2 className="text-2xl font-bold text-gray-800">Profile Details</h2>
+                  <div className="flex items-center mt-2">
+                    {user?.role !== 'CLIENT' && (
+                      <div className="flex items-center mt-2">
+                        <Star className="w-5 h-5 text-purple-400 fill-current" />
+                        <button 
+                          onClick={() => setShowReviewsModal(true)}
+                          className="ml-2 text-gray-600 hover:text-purple-500 transition-colors"
+                        >
+                          {reviews.length > 0
+                            ? `${(reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length).toFixed(1)} (${reviews.length} reviews)`
+                            : 'No reviews yet'}
+                        </button>
                       </div>
-                    ) : (
-                      <p className="text-gray-500 italic">No booked services found</p>
                     )}
                   </div>
-                </>
+                </div>
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="px-6 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors duration-200 flex items-center"
+                >
+                  {isEditing ? (
+                    <>
+                      <X className="w-5 h-5 mr-2" />
+                      Cancel
+                    </>
+                  ) : (
+                    <>
+                      <Edit2 className="w-5 h-5 mr-2" />
+                      Edit Profile
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {isEditing ? (
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        {...register('name')}
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        {...register('email')}
+                        type="email"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <select
+                        {...register('role')}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        <option value="CLIENT">Client</option>
+                        <option value="PROVIDER">Provider</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
+                      <input
+                        {...register('skills')}
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      <p className="mt-1 text-sm text-gray-500">Enter skills separated by commas</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Location (latitude, longitude)
+                    </label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <input
+                        {...register('location.coordinates.0')}
+                        type="number"
+                        step="any"
+                        placeholder="Latitude"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                      <input
+                        {...register('location.coordinates.1')}
+                        type="number"
+                        step="any"
+                        placeholder="Longitude"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        reset()
+                        setIsEditing(false)
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-sm font-medium text-white bg-purple-500 rounded-md hover:bg-purple-600 transition-colors duration-200"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-8">
+                  <div className="bg-purple-50 rounded-xl p-6 shadow-sm">
+                    <h3 className="text-xl font-semibold text-purple-800 mb-4 flex items-center">
+                      <Tag className="w-5 h-5 mr-2 text-purple-500" />
+                      Skills
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {user?.skills && user.skills.length > 0 ? (
+                        user.skills.map((skill: string) => (
+                          <span
+                            key={skill}
+                            className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
+                          >
+                            {skill}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-gray-500 italic">No skills listed</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {user?.role === 'CLIENT' && (
+                    <div className="bg-purple-50 rounded-xl p-6 shadow-sm">
+                      <h3 className="text-xl font-semibold text-purple-800 mb-4 flex items-center">
+                        <Calendar className="w-5 h-5 mr-2 text-purple-500" />
+                        Booked Services
+                      </h3>
+                      {userTasks.length > 0 ? (
+                        <div className="space-y-4">
+                          {userTasks.map((task) => (
+                            <div key={task._id} className="bg-white p-4 rounded-lg shadow-sm">
+                              <h4 className="font-medium text-gray-800">{task.title}</h4>
+                              <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                              <div className="flex justify-between items-center mt-2">
+                                <div className="flex items-center space-x-4">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyle(task.status, task.rejectedByProvider)}`}>
+                                    {task.status === 'CANCELLED' && task.rejectedByProvider ? 'Rejected' : task.status}
+                                  </span>
+                                  {task.provider && task.provider._id && (
+                                    <>
+                                      {(() => {
+                                        const reviewStatus = getReviewStatus(task);
+                                        return (
+                                          <div className="flex items-center">
+                                            {reviewStatus.canReview ? (
+                                              <button
+                                                onClick={() => {
+                                                  setSelectedTask(task);
+                                                  setShowReviewForm(true);
+                                                }}
+                                                className={`flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${reviewStatus.buttonStyle}`}
+                                              >
+                                                <Star className="w-3 h-3 mr-1" />
+                                                {reviewStatus.message}
+                                              </button>
+                                            ) : (
+                                              <span className={`flex items-center text-xs ${reviewStatus.buttonStyle}`}>
+                                                <MessageSquare className="w-3 h-3 mr-1" />
+                                                {reviewStatus.message}
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </>
+                                  )}
+                                </div>
+                                <span className="text-sm text-gray-500">
+                                  {formatDate(task.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 italic">No booked services found</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
       </div>
       {showReviewForm && selectedTask && (
@@ -457,6 +502,7 @@ export function UserProfile() {
             setSelectedTask(null);
           }}
           onReviewSubmitted={() => {
+            setReviews(prevReviews => [...prevReviews, { _id: selectedTask._id, task: { _id: selectedTask._id, title: selectedTask.title }, provider: { _id: selectedTask.provider?._id, name: selectedTask.provider?.name }, client: { _id: user?._id, name: user?.name }, rating: 0, comment: '', createdAt: new Date().toISOString() }]);
             setSubmittedReviews(prev => new Set([...prev, selectedTask._id]));
           }}
         />
