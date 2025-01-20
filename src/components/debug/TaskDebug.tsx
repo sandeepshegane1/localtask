@@ -38,7 +38,7 @@ export function TaskDebug() {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div><strong>Status:</strong> {task.status}</div>
               <div><strong>Category:</strong> {task.category}</div>
-              <div><strong>Budget:</strong> ${task.budget}</div>
+              <div><strong>Budget:</strong> ₹{task.budget}</div>
               <div>
                 <strong>Location:</strong>{' '}
                 {task.location?.coordinates?.[0]}, {task.location?.coordinates?.[1]}

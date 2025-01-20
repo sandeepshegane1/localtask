@@ -169,18 +169,65 @@ router.get('/providers', auth, async (req, res) => {
 
     console.log('Finding providers with query:', JSON.stringify(query, null, 2));
 
-    const providers = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 });
+    // Get providers with their average rating
+    const providers = await User.aggregate([
+      // Match providers based on query
+      { $match: query },
 
-    console.log(`Found ${providers.length} providers:`, 
-      providers.map(p => ({ 
-        id: p._id, 
-        name: p.name, 
-        category: p.category, 
-        skills: p.skills 
-      }))
-    );
+      // Lookup ratings from completed tasks
+      {
+        $lookup: {
+          from: 'tasks',
+          let: { providerId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$provider', '$$providerId'] },
+                    { $eq: ['$status', 'COMPLETED'] },
+                    { $ne: ['$rating', null] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'completedTasks'
+        }
+      },
+
+      // Calculate average rating and tasks count
+      {
+        $addFields: {
+          totalTasks: { $size: '$completedTasks' },
+          averageRating: {
+            $cond: {
+              if: { $gt: [{ $size: '$completedTasks' }, 0] },
+              then: { $avg: '$completedTasks.rating' },
+              else: 0
+            }
+          }
+        }
+      },
+
+      // Remove sensitive data
+      {
+        $project: {
+          password: 0,
+          completedTasks: 0
+        }
+      },
+
+      // Sort by average rating (descending) and total tasks (descending)
+      {
+        $sort: {
+          averageRating: -1,
+          totalTasks: -1
+        }
+      }
+    ]);
+
+    console.log(`Found ${providers.length} providers sorted by rating`);
 
     res.json(providers);
   } catch (error) {
@@ -189,6 +236,7 @@ router.get('/providers', auth, async (req, res) => {
   }
 });
 
+// Get farmers by category
 router.get('/farmers', auth, async (req, res) => {
   try {
     console.log('Request received for /farmers with query:', req.query);

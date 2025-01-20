@@ -51,6 +51,18 @@
 //       </div>
 
 //       <div>
+//         <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
+//         <input
+//           {...register('mobileNumber')}
+//           type="tel"
+//           required
+//           pattern="[0-9]{10}"
+//           placeholder="Enter 10 digit mobile number"
+//           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
+//         />
+//       </div>
+
+//       <div>
 //         <label className="block text-sm font-medium text-gray-700">Password</label>
 //         <input
 //           {...register('password')}
@@ -166,6 +178,23 @@ export function ClientRegistration() {
               />
             </div>
             <div>
+              <label htmlFor="mobile-number" className="sr-only">Mobile Number</label>
+              <input
+                id="mobile-number"
+                {...register('mobileNumber', { 
+                  required: 'Mobile number is required',
+                  pattern: {
+                    value: /^[0-9]{10}$/,
+                    message: 'Invalid mobile number',
+                  }
+                })}
+                type="tel"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
+                placeholder="Mobile Number"
+              />
+            </div>
+            <div>
               <label htmlFor="password" className="sr-only">Password</label>
               <input
                 id="password"
@@ -185,9 +214,9 @@ export function ClientRegistration() {
             </div>
           </div>
 
-          {(errors.name || errors.email || errors.password) && (
+          {(errors.name || errors.email || errors.mobileNumber || errors.password) && (
             <div className="text-red-500 text-sm mt-2">
-              {errors.name?.message || errors.email?.message || errors.password?.message}
+              {errors.name?.message || errors.email?.message || errors.mobileNumber?.message || errors.password?.message}
             </div>
           )}
 
@@ -218,4 +247,3 @@ export function ClientRegistration() {
     </div>
   );
 }
-

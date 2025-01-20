@@ -67,7 +67,7 @@ export function ReviewsModal({ reviews, isOpen, onClose, userRole }: ReviewsModa
                       {userRole === 'PROVIDER' ? review.client.name : review.provider.name}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      Task: {review.task.title}
+                      Task: {review.task?.title || 'Task no longer available'}
                     </p>
                     <div className="flex items-center mt-2">
                       {[...Array(5)].map((_, i) => (

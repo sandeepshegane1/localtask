@@ -2,8 +2,10 @@ import express from 'express';
 import Task from '../models/Task.js';
 import { auth } from '../middleware/auth.js';
 import User from '../models/User.js';
+import OTP from '../models/OTP.js';
 import Notification from '../models/Notification.js';
 import mongoose from 'mongoose';
+import { sendEmail } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -12,10 +14,16 @@ router.post('/', auth, async (req, res) => {
   try {
     console.log('Creating new task with data:', req.body);
     
+    // Set status based on task type
+    let status = 'OPEN';
+    if (req.body.type === 'QUICK_SERVICE') {
+      status = 'QUICK_SERVICE_PENDING';
+    }
+    
     const taskData = {
       ...req.body,
       client: req.user._id,
-      status: 'OPEN',
+      status: status,
       provider: null,
       location: {
         type: 'Point',
@@ -71,11 +79,17 @@ router.get('/provider', auth, async (req, res) => {
     // Handle different status types
     switch (status) {
       case 'QUICK_SERVICE_PENDING':
-        // Show all quick service tasks that haven't been assigned
+        // Show quick service tasks that haven't been assigned
         query = {
           status: 'QUICK_SERVICE_PENDING',
           provider: { $exists: false }
         };
+        
+        // If provider has skills, filter by those categories
+        const provider = await User.findById(req.user._id);
+        if (provider.skills && provider.skills.length > 0) {
+          query.category = { $in: provider.skills };
+        }
         break;
         
       case 'ASSIGNED':
@@ -661,6 +675,142 @@ router.patch('/:id/reject', auth, async (req, res) => {
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+});
+
+// Verify completion OTP
+router.post('/:id/verify-completion', auth, async (req, res) => {
+  try {
+    console.log('Verifying OTP for task:', req.params.id);
+    const { otp } = req.body;
+
+    if (!otp) {
+      return res.status(400).json({ error: 'OTP is required' });
+    }
+
+    const task = await Task.findOne({
+      _id: req.params.id,
+      provider: req.user._id,
+      status: 'ASSIGNED'
+    }).populate('client', 'email name');
+
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found or not assigned to you' });
+    }
+
+    console.log('Found task:', task.title);
+
+    // Find and verify OTP
+    const otpDoc = await OTP.findOne({
+      taskId: task._id,
+      otp: otp,
+      verified: false
+    });
+
+    if (!otpDoc) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    console.log('Valid OTP found');
+
+    // Mark OTP as verified
+    otpDoc.verified = true;
+    await otpDoc.save();
+
+    // Update task status
+    task.status = 'COMPLETED';
+    task.completedAt = new Date();
+    await task.save();
+
+    console.log('Task marked as completed');
+
+    try {
+      // Send completion email to client
+      const emailContent = `
+        <h1>Task Completed</h1>
+        <p>Dear ${task.client.name},</p>
+        <p>Your task "${task.title}" has been completed by the service provider.</p>
+        <p>Thank you for using LocalTask!</p>
+      `;
+
+      await sendEmail({
+        to: task.client.email,
+        subject: `Task Completed - ${task.title}`,
+        html: emailContent
+      });
+
+      console.log('Completion email sent to client');
+    } catch (emailError) {
+      console.error('Error sending completion email:', emailError);
+      // Continue even if email fails
+    }
+
+    res.json({ 
+      success: true,
+      message: 'Task completed successfully'
+    });
+  } catch (error) {
+    console.error('Error in verify-completion:', error);
+    res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
+// Request completion OTP
+router.post('/:id/request-completion', auth, async (req, res) => {
+  try {
+    console.log('Requesting completion OTP for task:', req.params.id);
+    
+    const task = await Task.findOne({
+      _id: req.params.id,
+      provider: req.user._id,
+      status: 'ASSIGNED'
+    }).populate('client', 'email name');
+
+    if (!task) {
+      console.log('Task not found or not assigned to provider');
+      return res.status(404).json({ error: 'Task not found or not assigned to you' });
+    }
+
+    console.log('Found task:', task.title);
+    console.log('Client email:', task.client.email);
+
+    // Generate a 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('Generated OTP:', otp);
+
+    // Save OTP in database and send email concurrently
+    const [savedOTP] = await Promise.all([
+      OTP.create({
+        taskId: task._id,
+        otp: otp
+      }),
+      sendEmail({
+        to: task.client.email,
+        subject: `OTP for Task Completion - ${task.title}`,
+        html: `
+          <h1>Task Completion OTP</h1>
+          <p>Dear ${task.client.name},</p>
+          <p>Your service provider has requested to complete the task: <strong>${task.title}</strong></p>
+          <p>Your OTP is: <strong>${otp}</strong></p>
+          <p>This OTP will expire in 5 minutes.</p>
+          <p>If you did not request this OTP, please contact support.</p>
+        `
+      }).catch(error => {
+        // Log error but don't fail the request
+        console.error('Error sending email:', error);
+        return null;
+      })
+    ]);
+
+    // Respond immediately after saving OTP, don't wait for email
+    res.json({ 
+      message: 'OTP generated successfully. Check your email.',
+      success: true
+    });
+    
+  } catch (error) {
+    console.error('Error in request-completion:', error);
+    res.status(500).json({ error: 'Failed to generate OTP' });
   }
 });
 

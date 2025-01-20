@@ -20,6 +20,7 @@ export function ProviderRegistration() {
       name: '',
       email: '',
       password: '',
+      mobileNumber: '',
       providerType: ''
     }
   });
@@ -34,6 +35,7 @@ export function ProviderRegistration() {
   const name = watch('name');
   const email = watch('email');
   const password = watch('password');
+  const mobileNumber = watch('mobileNumber');
 
   const handleServiceToggle = (service: string) => {
     setSelectedServices(prev => 
@@ -72,7 +74,7 @@ export function ProviderRegistration() {
 
   const onSubmit = async (data: any) => {
     if (step === 1) {
-      if (!name || !email || !password || !providerType) {
+      if (!name || !email || !password || !mobileNumber || !providerType) {
         toast.error('Please fill all required fields');
         return;
       }
@@ -99,6 +101,7 @@ export function ProviderRegistration() {
         name,
         email,
         password,
+        mobileNumber,
         role: 'PROVIDER',
         category: providerType,
         skills: selectedServices,
@@ -147,6 +150,22 @@ export function ProviderRegistration() {
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500"
         />
         {errors.email && <p className="text-red-500 text-xs">{errors.email.message as string}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Mobile Number</label>
+        <input
+          {...register('mobileNumber', { 
+            required: 'Mobile number is required',
+            pattern: {
+              value: /^[0-9]{10}$/,
+              message: 'Invalid mobile number',
+            }
+          })}
+          type="tel"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500"
+        />
+        {errors.mobileNumber && <p className="text-red-500 text-xs">{errors.mobileNumber.message as string}</p>}
       </div>
 
       <div>

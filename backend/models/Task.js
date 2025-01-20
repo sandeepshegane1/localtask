@@ -13,7 +13,7 @@ const taskSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'QUICK_SERVICE_PENDING', 'REJECTED', 'REJECTED'],
+    enum: ['OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'QUICK_SERVICE_PENDING', 'REJECTED', 'PENDING_OTP_VERIFICATION'],
     default: 'OPEN'
   },
   budget: {

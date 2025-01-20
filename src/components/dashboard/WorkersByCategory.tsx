@@ -1,8 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Star, MapPin, Calendar, Info, Crosshair, Zap } from 'lucide-react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../../lib/axios';
+
+interface Worker {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  rating: number;
+  reviewsCount: number;
+  completedTasks: number;
+  profilePhoto?: string;
+}
+import  { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import {  useMutation } from '@tanstack/react-query';
+import {  MapPin, Calendar, Info, Crosshair, Zap } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { calculateDistance } from '../../utils/distance';
 
@@ -266,15 +281,16 @@ const QuickServiceForm = ({ category, onClose }: {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Budget (INR)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Budget (₹)</label>
             <input
               type="number"
               value={formData.budget}
               onChange={(e) => setFormData({ ...formData, budget: Number(e.target.value) })}
-              className="w-full px-3 py-2 border rounded-md"
-              min="0"
-              step="100"
-              required
+              className={`w-full px-3 py-2 border ${
+                quickServiceMutation.isError ? 'border-red-500' : 'border-gray-300'
+              } rounded-md`}
+              placeholder="Enter budget in rupees"
+              step="0.01"
             />
           </div>
 
@@ -420,6 +436,45 @@ export function WorkersByCategory() {
       return response.data;
     },
     enabled: isAuthenticated && !!clientUser?._id
+  });
+
+  // Fetch worker stats
+  const { data: workerStatsData } = useQuery({
+    queryKey: ['worker-stats', workers?.map(w => w._id), category],
+    queryFn: async () => {
+      const statsData: { [key: string]: { averageRating: number, totalReviews: number } } = {};
+      
+      if (workers) {
+        await Promise.all(
+          workers.map(async (worker) => {
+            try {
+              const response = await api.get(`/reviews/provider/${worker._id}/stats`);
+              statsData[worker._id] = response.data || { averageRating: 0, totalReviews: 0 };
+            } catch (error) {
+              console.error('Error fetching worker stats:', error);
+              statsData[worker._id] = { averageRating: 0, totalReviews: 0 };
+            }
+          })
+        );
+      }
+      return statsData;
+    },
+    enabled: !!workers?.length,
+    refetchInterval: 3000 // Refetch more frequently
+  });
+
+  // Sort workers by their average stats
+  const sortedWorkers = [...(workers || [])].sort((a, b) => {
+    const aStats = workerStatsData?.[a._id] || { averageRating: 0, totalReviews: 0 };
+    const bStats = workerStatsData?.[b._id] || { averageRating: 0, totalReviews: 0 };
+    
+    // First sort by average rating
+    if (bStats.averageRating !== aStats.averageRating) {
+      return bStats.averageRating - aStats.averageRating;
+    }
+    
+    // If ratings are equal, sort by number of reviews
+    return bStats.totalReviews - aStats.totalReviews;
   });
 
   const createTaskMutation = useMutation<Task, Error, Task>({
@@ -591,7 +646,7 @@ export function WorkersByCategory() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {workers.map((worker) => (
+        {sortedWorkers.map((worker) => (
           <div key={worker._id} className="bg-white rounded-lg shadow-lg p-6">
             {/* Worker Info Section */}
             <div className="flex items-start justify-between mb-6">
@@ -600,19 +655,39 @@ export function WorkersByCategory() {
                 <div className="ml-4">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">{worker.name}</h3>
-                    <ProviderStats providerId={worker._id} category={category || ''} />
+                    <div className="flex items-center space-x-2">
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-4 h-4 ${
+                              star <= (workerStatsData?.[worker._id]?.averageRating || 0)
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {(workerStatsData?.[worker._id]?.averageRating || 0).toFixed(1)}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        ({workerStatsData?.[worker._id]?.totalReviews || 0} {workerStatsData?.[worker._id]?.totalReviews === 1 ? 'review' : 'reviews'})
+                      </span>
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <button
-                      onClick={() => setShowReviews(prev => ({
-                        ...prev,
-                        [worker._id]: !prev[worker._id]
-                      }))}
-                      className="text-sm text-purple-600 hover:text-purple-700 transition-colors"
-                    >
-                      {showReviews[worker._id] ? 'Hide Reviews' : 'Show Reviews'}
-                    </button>
+                  <div className="mt-2 text-sm text-gray-600">
+                    {worker.completedTasks || 0} tasks completed
                   </div>
+                  <button
+                    onClick={() => setShowReviews(prev => ({
+                      ...prev,
+                      [worker._id]: !prev[worker._id]
+                    }))}
+                    className="mt-2 text-sm text-purple-600 hover:text-purple-700 transition-colors"
+                  >
+                    {showReviews[worker._id] ? 'Hide Reviews' : 'Show Reviews'}
+                  </button>
                 </div>
               </div>
               <button
@@ -626,6 +701,23 @@ export function WorkersByCategory() {
                 {selectedWorker === worker._id ? 'Cancel' : 'Create Task'}
               </button>
             </div>
+
+            {/* Reviews Section */}
+            {showReviews[worker._id] && (
+              <div className="mt-4 border-t pt-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">Reviews</h4>
+                  <div className="flex items-center">
+                    <ProviderStats providerId={worker._id} category={category} />
+                  </div>
+                </div>
+                <ProviderReviews 
+                  providerId={worker._id}
+                  serviceCategory={category}
+                  hideStats={true}
+                />
+              </div>
+            )}
 
             {/* Worker Details */}
             <div className="space-y-3 text-gray-700 mb-4">
@@ -667,23 +759,6 @@ export function WorkersByCategory() {
               </div>
             )} */}
 
-            {/* Reviews Section */}
-            {showReviews[worker._id] && (
-              <div className="mt-4 border-t pt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-medium">Reviews</h4>
-                  <div className="flex items-center">
-                    <ProviderStats providerId={worker._id} category={category} />
-                  </div>
-                </div>
-                <ProviderReviews 
-                  providerId={worker._id}
-                  serviceCategory={category}
-                  hideStats={true}
-                />
-              </div>
-            )}
-
             {/* Task Form - Only show for selected worker */}
             {selectedWorker === worker._id && (
               <div className="border-t pt-6 mt-6">
@@ -717,7 +792,7 @@ export function WorkersByCategory() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormInput
-                      label="Budget"
+                      label="Budget (₹)"
                       type="number"
                       name="budget"
                       value={taskFormDataMap[worker._id]?.budget || 0}

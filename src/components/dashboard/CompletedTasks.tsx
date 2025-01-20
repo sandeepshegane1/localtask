@@ -77,8 +77,8 @@ export function CompletedTasks() {
                   <span className="text-sm text-gray-900">{task.provider.name}</span>
                 </div>
                 <div className="mt-1">
-                  <span className="text-sm font-medium text-gray-600">Budget: </span>
-                  <span className="text-sm text-gray-900">${task.budget}</span>
+                  <span className="text-sm font-medium text-gray-600">Budget: ₹</span>
+                  <span className="text-sm text-gray-900">{task.budget}</span>
                 </div>
               </div>
               {!hasReview(task._id) && (

@@ -12,6 +12,9 @@ interface User {
   name: string;
   email: string;
   location?: { lat: number; lng: number };
+  category?: string;
+  skills?: string[];
+  role: string;
 }
 
 interface Task {
@@ -247,6 +250,13 @@ export function ProviderDashboard() {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const queryClient = useQueryClient();
   const [selectedTaskForMap, setSelectedTaskForMap] = useState<Task | null>(null);
+  const [showOTPInput, setShowOTPInput] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | null>(null);
+  const [resendDisabled, setResendDisabled] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
 
   // Get current location
   useEffect(() => {
@@ -294,6 +304,16 @@ export function ProviderDashboard() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
+  // Filter tasks based on provider's skills
+  const filteredTasks = useMemo(() => {
+    if (!tasks) return [];
+    if (activeTab !== 'quick') return tasks;
+    
+    // For quick service tab, show tasks matching provider's skills
+    if (!user?.skills?.length) return tasks; // If no skills defined, show all tasks
+    return tasks.filter((task: Task) => user.skills?.includes(task.category));
+  }, [tasks, activeTab, user?.skills]);
+
   // Accept task handler
   const handleAcceptTask = async (taskId: string) => {
     try {
@@ -312,12 +332,51 @@ export function ProviderDashboard() {
 
   const handleCompleteTask = async (taskId: string) => {
     try {
-      await api.patch(`/tasks/${taskId}/complete`);
-      toast.success('Task marked as completed');
+      setSelectedTaskId(taskId);
+      setIsVerifying(true);
+      setEmailPreviewUrl(null);
+      
+      // Request OTP
+      const response = await api.post(`/tasks/${taskId}/request-completion`);
+      toast.success('OTP has been sent to client\'s email');
+      setShowOTPInput(true);
+      
+      // For development: show email preview URL
+      if (response.data.previewURL) {
+        setEmailPreviewUrl(response.data.previewURL);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to request OTP');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTaskId || !otp) return;
+
+    try {
+      setIsVerifying(true);
+      await api.post(`/tasks/${selectedTaskId}/verify-completion`, { otp });
+      toast.success('Task completed successfully');
+      setShowOTPInput(false);
+      setOtp('');
+      setSelectedTaskId(null);
       queryClient.invalidateQueries(['provider-tasks']);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to complete task');
+      toast.error(error.response?.data?.error || 'Failed to verify OTP');
+    } finally {
+      setIsVerifying(false);
     }
+  };
+
+  const handleCancelOTP = () => {
+    setShowOTPInput(false);
+    setOtp('');
+    setSelectedTaskId(null);
+    setIsVerifying(false);
+    setEmailPreviewUrl(null);
   };
 
   const handleRejectTask = async (taskId: string) => {
@@ -349,6 +408,38 @@ export function ProviderDashboard() {
       if (error.response?.data?.stack) {
         console.debug('Error stack:', error.response.data.stack);
       }
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (!selectedTaskId || resendDisabled) return;
+
+    try {
+      setResendDisabled(true);
+      setResendTimer(30); // 30 seconds cooldown
+
+      const response = await api.post(`/tasks/${selectedTaskId}/request-completion`);
+      toast.success('New OTP has been sent to client\'s email');
+
+      // For development: show email preview URL
+      if (response.data.previewURL) {
+        setEmailPreviewUrl(response.data.previewURL);
+      }
+
+      // Start countdown timer
+      const timer = setInterval(() => {
+        setResendTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setResendDisabled(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to resend OTP');
+      setResendDisabled(false);
     }
   };
 
@@ -405,105 +496,213 @@ export function ProviderDashboard() {
       )}
 
       {/* Tasks Grid */}
-      {!isLoading && !error && (
-        <>
-          {tasks.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No {activeTab} tasks found</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredTasks.map((task: Task) => (
+          <div 
+            key={task._id} 
+            className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
+              task.status === 'OPEN' ? 'border-emerald-500' :
+              task.status === 'ASSIGNED' ? 'border-yellow-500' :
+              task.status === 'COMPLETED' ? 'border-green-500' :
+              task.status === 'QUICK_SERVICE_PENDING' ? 'border-purple-500' :
+              'border-gray-500'
+            }`}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                task.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700' :
+                task.status === 'ASSIGNED' ? 'bg-yellow-100 text-yellow-800' :
+                task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                task.status === 'QUICK_SERVICE_PENDING' ? 'bg-purple-100 text-purple-700' :
+                'bg-gray-100 text-gray-700'
+              }`}>
+                {task.status}
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {tasks.map((task: Task) => (
-                <div
-                  key={task._id}
-                  className={`bg-white rounded-lg shadow-md p-6 border-l-4 ${
-                    task.status === 'QUICK_SERVICE_PENDING'
-                      ? 'border-purple-500'
-                      : task.status === 'ASSIGNED'
-                      ? 'border-purple-500'
-                      : task.status === 'COMPLETED'
-                      ? 'border-purple-500'
-                      : 'border-gray-500'
-                  }`}
-                >
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{task.title}</h3>
-                  <p className="text-gray-600 mb-4">{task.description}</p>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center text-gray-500">
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      <span>${task.budget}</span>
-                    </div>
-                    
-                    {task.deadline && (
-                      <div className="flex items-center text-gray-500">
-                        <Clock className="w-4 h-4 mr-2" />
-                        <span>{new Date(task.deadline).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                    
-                    {task.location && currentLocation && (
-                      <div className="flex items-center text-gray-500">
-                        <MapPin className="w-4 h-4 mr-2" />
-                        <span>
-                          {calculateDistance(
-                            currentLocation.lat,
-                            currentLocation.lng,
-                            task.location.coordinates[1],
-                            task.location.coordinates[0]
-                          )} km away
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center text-gray-500">
-                      <span className="font-medium">Category:</span>
-                      <span className="ml-2">{task.category}</span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  {(activeTab === 'open' || activeTab === 'quick') && (
-                    <div className="mt-4 flex justify-end space-x-2">
-                      {activeTab === 'open' && (
-                        <button
-                          onClick={() => handleRejectTask(task._id)}
-                          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                        >
-                          Reject
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleAcceptTask(task._id)}
-                        className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-                      >
-                        Accept Task
-                      </button>
-                    </div>
-                  )}
-                  {task.status === 'ASSIGNED' && (
-                    <div className="flex space-x-2 mt-4">
-                      <button
-                        onClick={() => handleCompleteTask(task._id)}
-                        className="flex items-center px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Complete Task
-                      </button>
-                      <button
-                        onClick={() => setSelectedTaskForMap(task)}
-                        className="flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-                      >
-                        <Navigation className="w-4 h-4 mr-1" />
-                        Get Direction
-                      </button>
-                    </div>
-                  )}
+            
+            <p className="text-gray-600 mb-4">{task.description}</p>
+            
+            <div className="space-y-2">
+              <div className="flex items-center text-gray-500">
+                <DollarSign className="w-4 h-4 mr-2" />
+                <span>${task.budget}</span>
+              </div>
+              
+              {task.deadline && (
+                <div className="flex items-center text-gray-500">
+                  <Clock className="w-4 h-4 mr-2" />
+                  <span>{new Date(task.deadline).toLocaleDateString()}</span>
                 </div>
-              ))}
+              )}
+              
+              {task.location && currentLocation && (
+                <div className="flex items-center text-gray-500">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  <span>
+                    {calculateDistance(
+                      currentLocation.lat,
+                      currentLocation.lng,
+                      task.location.coordinates[1],
+                      task.location.coordinates[0]
+                    )} km away
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center text-gray-500 mt-2">
+                <span className="font-medium">Category:</span>
+                <span className="ml-2 px-2 py-1 bg-gray-100 rounded-full text-sm">
+                  {task.category}
+                </span>
+              </div>
             </div>
-          )}
-        </>
+
+            {/* Action Buttons */}
+            <div className="mt-4 flex justify-between items-center">
+              {task.status === 'QUICK_SERVICE_PENDING' && (
+                <div className="flex w-full">
+                  <button
+                    onClick={() => handleAcceptTask(task._id)}
+                    className="w-full bg-emerald-500 text-white py-2 px-4 rounded hover:bg-emerald-600 transition-colors flex items-center justify-center"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Accept Quick Service
+                  </button>
+                </div>
+              )}
+              {task.status === 'OPEN' && (
+                <div className="flex space-x-2 w-full">
+                  <button
+                    onClick={() => handleAcceptTask(task._id)}
+                    className="flex-1 bg-emerald-500 text-white py-2 px-4 rounded hover:bg-emerald-600 transition-colors"
+                  >
+                    Accept Task
+                  </button>
+                  <button
+                    onClick={() => handleRejectTask(task._id)}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+              {task.status === 'ASSIGNED' && (
+                <div className="flex space-x-2 w-full">
+                  <button
+                    onClick={() => handleCompleteTask(task._id)}
+                    className="flex-1 bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600 transition-colors flex items-center justify-center"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Complete Task
+                  </button>
+                  <button
+                    onClick={() => setSelectedTaskForMap(task)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
+                  >
+                    <Navigation className="w-4 h-4 mr-2" />
+                    Get Direction
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* OTP Verification Modal */}
+      {showOTPInput && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full m-4">
+            <h2 className="text-xl font-semibold mb-4">Complete Task</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              An OTP has been sent to the client's email.
+              <br />
+              Please ask the client for the OTP to complete the task.
+            </p>
+
+            {/* Development Only: Email Preview Link */}
+            {emailPreviewUrl && (
+              <div className="mb-4 p-3 bg-blue-50 rounded-md">
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Development Mode:</strong> Click below to view the email with OTP
+                </p>
+                <a
+                  href={emailPreviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 text-sm underline"
+                >
+                  View Email with OTP →
+                </a>
+              </div>
+            )}
+            
+            <form onSubmit={handleVerifyOTP} className="space-y-4">
+              <div>
+                <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
+                  Enter OTP
+                </label>
+                <div className="mt-1 relative">
+                  <input
+                    id="otp"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    required
+                    disabled={isVerifying}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 disabled:bg-gray-100"
+                    placeholder="Enter 6-digit OTP"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    disabled={resendDisabled}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+                  </button>
+                </div>
+                {resendDisabled && resendTimer > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    You can request a new OTP in {resendTimer} seconds
+                  </p>
+                )}
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  type="submit"
+                  disabled={isVerifying || otp.length !== 6}
+                  className="flex-1 bg-emerald-500 text-white py-2 px-4 rounded hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isVerifying ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Verifying...
+                    </span>
+                  ) : (
+                    'Verify & Complete'
+                  )}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={handleCancelOTP}
+                  disabled={isVerifying}
+                  className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
       {selectedTaskForMap && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

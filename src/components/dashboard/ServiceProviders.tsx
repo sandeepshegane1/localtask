@@ -167,6 +167,12 @@ function ProviderCard({ provider, onSelect }: { provider: ServiceProvider; onSel
             </div>
           </div>
         </div>
+        <div className="ml-auto text-right">
+          <span className="text-2xl font-bold text-gray-900">
+            ₹{provider.hourlyRate}/hr
+          </span>
+          <p className="text-sm text-emerald-600">2 HOUR MINIMUM</p>
+        </div>
       </div>
 
       {provider.skills && provider.skills.length > 0 && (
@@ -339,7 +345,7 @@ const QuickServiceForm = ({ category, onClose }: {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Budget (INR)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Budget (₹)</label>
             <input
               type="number"
               value={formData.budget}
@@ -656,6 +662,13 @@ export function ServiceProviders() {
 
   const [showQuickServiceModal, setShowQuickServiceModal] = useState(false);
 
+  // Sort providers by their average stats
+  const sortedProviders = [...(providers || [])].sort((a, b) => {
+    const aStats = providerStatsData?.[a._id] || { averageRating: 0, totalReviews: 0 };
+    const bStats = providerStatsData?.[b._id] || { averageRating: 0, totalReviews: 0 };
+    return bStats.averageRating - aStats.averageRating;
+  });
+
   if (isProvidersLoading) return <LoadingSpinner />;
   if (error) return <div>Error loading providers</div>;
   if (!providers?.length) return <div>No providers found</div>;
@@ -684,7 +697,7 @@ export function ServiceProviders() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {providers.map((provider) => (
+        {sortedProviders.map((provider) => (
           <div key={provider._id} className="bg-white rounded-lg shadow-lg p-6">
             {/* Provider Info Section */}
             <div className="flex items-start justify-between mb-6">
@@ -798,7 +811,7 @@ export function ServiceProviders() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormInput
-                      label="Budget"
+                      label="Budget (₹)"
                       type="number"
                       name="budget"
                       value={taskFormData.budget}

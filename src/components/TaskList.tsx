@@ -32,7 +32,7 @@ export function TaskList() {
               {task.status}
             </span>
             <span className="text-sm text-gray-500">
-              Budget: ${task.budget}
+              Budget: ₹{task.budget}
             </span>
           </div>
         </div>

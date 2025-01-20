@@ -30,21 +30,32 @@ router.post('/register', async (req, res) => {
       name, 
       role,
       category,
-      location 
+      location,
+      mobileNumber 
     } = req.body;
 
     // Validate required fields
-    if (!email || !password || !name || !role) {
+    if (!email || !password || !name || !role || !mobileNumber) {
       return res.status(400).json({ 
         error: 'Required fields missing',
-        required: ['email', 'password', 'name', 'role']
+        required: ['email', 'password', 'name', 'role', 'mobileNumber']
       });
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ 
+      $or: [
+        { email },
+        { mobileNumber }
+      ]
+    });
     if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+      if (existingUser.email === email) {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
+      if (existingUser.mobileNumber === mobileNumber) {
+        return res.status(400).json({ error: 'Mobile number already registered' });
+      }
     }
 
     // Validate provider-specific fields
@@ -64,6 +75,7 @@ router.post('/register', async (req, res) => {
       password: hashedPassword,
       name,
       role,
+      mobileNumber,
       ...(category && { category }),
       ...(location && { location }),
       ...(req.body.skills && { skills: req.body.skills }) // Add skills if provided
